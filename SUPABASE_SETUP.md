@@ -113,21 +113,40 @@ The homepage `/` intentionally returns 404.
 
 Open `supabase/schema.sql`.
 
-Near the bottom, replace the one placeholder UUID:
+Near the bottom, find:
 
-```txt
-00000000-0000-0000-0000-000000000000
+```sql
+calendar_uuid uuid := '...'::uuid;
 ```
 
-with the same UUID from `CALENDAR_ID`.
+Make sure that UUID is the same value as `CALENDAR_ID`.
 
 Then copy the full file into the Supabase **SQL Editor** and run it. It creates:
 
 - `calendars`
 - `habits`
 - `habit_marks`
+- note/completion columns on `habit_marks`
 - RLS policies
-- the starter `Mewing` habit
+- the starter `Mewing` and `Manga` habits
+
+## Existing Project: Add Notes
+
+If your app is already live and you only need the notes upgrade, run `supabase/notes-migration.sql` in the Supabase SQL Editor.
+
+Run the migration before deploying the updated frontend. The redesigned app reads these columns:
+
+- `completed`
+- `note`
+- `updated_at`
+
+Existing X marks become completed days automatically.
+
+## Existing Project: Add Manga
+
+If your app is already live and only needs the Manga habit, run `supabase/add-manga-habit.sql` in the Supabase SQL Editor.
+
+Before running it, make sure the `calendar_uuid` value in that file matches `CALENDAR_ID`.
 
 ## Step 8: Enable Realtime
 
@@ -163,8 +182,11 @@ Expected behavior:
 - `/` returns 404.
 - Wrong share codes return 404.
 - The valid route opens the Mewing calendar.
-- Only today can be toggled.
-- Two browser windows sync changes live.
+- Desktop shows the left habit sidebar with Mewing and Manga.
+- Mobile uses the hamburger button to open habit navigation.
+- Clicking any day opens the note panel.
+- Only today can be edited.
+- Two browser windows sync note and completion changes live.
 
 ## Vercel
 

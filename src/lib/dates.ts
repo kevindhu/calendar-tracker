@@ -73,6 +73,17 @@ export function getMonthBounds(monthKey: string): { start: string; end: string }
   };
 }
 
+export function getCalendarGridBounds(monthKey: string): { start: string; end: string } {
+  const days = getCalendarDays(monthKey);
+  const firstDay = days[0];
+  const lastDay = days[days.length - 1];
+
+  return {
+    start: firstDay.date,
+    end: lastDay.date,
+  };
+}
+
 export function getCalendarDays(monthKey: string): CalendarDay[] {
   const { year, month } = parseMonthKey(monthKey);
   const firstDay = new Date(Date.UTC(year, month - 1, 1));

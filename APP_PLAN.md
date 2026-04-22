@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build a small shared calendar app where a date can be marked with an X. Version 1 tracks one habit, Mewing, but the app should be structured so more habits can be added later.
+Build a small shared calendar app where a date can be marked with an X. Version 1 tracks Mewing and Manga, and the app should be structured so more habits can be added later.
 
 ## Recommended Stack
 
@@ -19,10 +19,14 @@ Version 1 should include:
 - Month calendar view
 - Previous/next month navigation
 - Today indicator
-- Click/tap a day to toggle an X
+- Click/tap a day to open a notes panel
+- Save a short note for today
+- Toggle today's completion from the notes panel
 - Cloud persistence through Supabase
 - Live updates across open browsers/devices
-- One default habit: Mewing
+- Two default habits: Mewing and Manga
+- Desktop left habit sidebar
+- Mobile hamburger habit drawer
 - Mobile-friendly layout
 
 Version 1 can skip:
@@ -43,7 +47,7 @@ That gives us a clean path to add:
 - habit colors/icons
 - archived habits
 - per-person progress
-- notes or mood values per date
+- richer note or mood values per date
 - streak/history pages
 
 ## Authentication Options
@@ -103,14 +107,15 @@ Version 1 uses one shared X per date.
 
 1. Create the Next.js app scaffold.
 2. Add base UI: calendar grid, month navigation, responsive layout.
-3. Add local mock state for toggling X marks.
+3. Add local mock state for date entries.
 4. Add Supabase client, short-lived server-issued JWTs, and environment variables.
-5. Create Supabase tables, RLS policies, and starter Mewing habit.
-6. Replace mock state with database reads/writes.
+5. Create Supabase tables, RLS policies, and starter habits.
+6. Replace mock state with database reads/writes for completion and notes.
 7. Add realtime subscription for `habit_marks`.
 8. Add private-link protection.
-9. Deploy to Vercel.
-10. Add custom domain.
+9. Add multi-habit navigation.
+10. Deploy to Vercel.
+11. Add custom domain.
 
 ## Configuration Approach
 

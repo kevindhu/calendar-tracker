@@ -60,19 +60,28 @@ export type Database = {
           id: string;
           habit_id: string;
           mark_date: string;
+          completed: boolean;
+          note: string;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id?: string;
           habit_id: string;
           mark_date: string;
+          completed?: boolean;
+          note?: string;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
           habit_id?: string;
           mark_date?: string;
+          completed?: boolean;
+          note?: string;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
