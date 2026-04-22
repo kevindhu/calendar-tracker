@@ -56,26 +56,27 @@ button {
 }
 
 .app-shell-detail {
-  width: min(100%, calc(var(--habit-sidebar-width) + var(--detail-gap) + var(--calendar-landscape-width)));
-  grid-template-columns: var(--habit-sidebar-width) var(--calendar-landscape-width) 0;
+  --detail-current-width: 0px;
+  --detail-open-gap: 0px;
+  display: flex;
+  width: min(
+    100%,
+    calc(
+      var(--habit-sidebar-width) + var(--detail-gap) + var(--calendar-landscape-width) +
+        var(--detail-open-gap) + var(--detail-current-width)
+    )
+  );
   align-items: stretch;
   justify-content: center;
-  place-items: stretch;
   gap: 0;
   margin: 0 auto;
   padding: 18px 0;
-  transition:
-    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    grid-template-columns 260ms cubic-bezier(0.22, 1, 0.36, 1),
-    gap 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .app-shell-panel-open {
-  width: min(
-    100%,
-    calc(var(--habit-sidebar-width) + var(--calendar-landscape-width) + var(--detail-panel-width) + (2 * var(--detail-gap)))
-  );
-  grid-template-columns: var(--habit-sidebar-width) var(--calendar-landscape-width) var(--detail-panel-width);
+  --detail-current-width: var(--detail-panel-width);
+  --detail-open-gap: var(--detail-gap);
 }
 
 .mobile-nav-row,
@@ -89,7 +90,6 @@ button {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  margin-right: var(--detail-gap);
   border: 1px solid rgba(22, 38, 44, 0.12);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.88);
@@ -185,12 +185,8 @@ button {
   min-height: 0;
 }
 
-.app-shell-panel-open .detail-panel {
+.app-shell-detail .detail-panel {
   width: 100%;
-}
-
-.app-shell-panel-open .detail-panel {
-  margin-left: var(--detail-gap);
 }
 
 .app-header,
@@ -733,6 +729,23 @@ h2 {
 }
 
 @media (min-width: 821px) {
+  .habit-sidebar {
+    flex: 0 0 var(--habit-sidebar-width);
+    margin-right: var(--detail-gap);
+  }
+
+  .app-shell-detail .calendar-panel {
+    flex: 0 0 var(--calendar-landscape-width);
+    max-width: var(--calendar-landscape-width);
+  }
+
+  .app-shell-detail .detail-panel {
+    flex: 0 0 var(--detail-current-width);
+    width: var(--detail-current-width);
+    max-width: var(--detail-current-width);
+    margin-left: var(--detail-open-gap);
+  }
+
   .app-shell-panel-open .calendar-panel,
   .detail-panel {
     height: auto;
