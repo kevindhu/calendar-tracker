@@ -71,11 +71,34 @@ type StreakStats = {
 
 type FireVariant = "default" | "blue" | "purple";
 
+type ConfettiPieceStyle = CSSProperties & {
+  "--color"?: string;
+  "--delay"?: string;
+  "--rotate"?: string;
+  "--x"?: string;
+  "--y"?: string;
+};
+
 const fireGifSources: Record<FireVariant, string> = {
   default: "/cute_flame3.gif",
   blue: "/cute_flame3_blue.gif",
   purple: "/cute_flame3_purple.gif",
 };
+
+const confettiPieces: ConfettiPieceStyle[] = [
+  { "--color": "#df322d", "--delay": "0ms", "--rotate": "-18deg", "--x": "-104px", "--y": "-104px" },
+  { "--color": "#0f8a62", "--delay": "42ms", "--rotate": "22deg", "--x": "-72px", "--y": "-134px" },
+  { "--color": "#2f7cff", "--delay": "84ms", "--rotate": "-34deg", "--x": "-36px", "--y": "-112px" },
+  { "--color": "#ef6c19", "--delay": "20ms", "--rotate": "16deg", "--x": "0px", "--y": "-146px" },
+  { "--color": "#b84aff", "--delay": "68ms", "--rotate": "-10deg", "--x": "42px", "--y": "-120px" },
+  { "--color": "#ffd447", "--delay": "106ms", "--rotate": "30deg", "--x": "76px", "--y": "-136px" },
+  { "--color": "#46d9ff", "--delay": "130ms", "--rotate": "-24deg", "--x": "108px", "--y": "-100px" },
+  { "--color": "#df322d", "--delay": "162ms", "--rotate": "38deg", "--x": "-92px", "--y": "-58px" },
+  { "--color": "#0f8a62", "--delay": "148ms", "--rotate": "-42deg", "--x": "-48px", "--y": "-78px" },
+  { "--color": "#ffd447", "--delay": "188ms", "--rotate": "12deg", "--x": "52px", "--y": "-76px" },
+  { "--color": "#b84aff", "--delay": "220ms", "--rotate": "-28deg", "--x": "96px", "--y": "-54px" },
+  { "--color": "#46d9ff", "--delay": "240ms", "--rotate": "24deg", "--x": "18px", "--y": "-94px" },
+];
 
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -216,6 +239,7 @@ export function MewingCalendar({
   const [activeHabitId, setActiveHabitId] = useState(defaultHabit.id);
   const tokenRef = useRef(initialToken.accessToken);
   const tokenExpiresAtRef = useRef(Date.parse(initialToken.expiresAt));
+  const confettiTimeoutsRef = useRef<number[]>([]);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [entries, setEntries] = useState<HabitEntrySummary[]>(initialMarks);
   const [streakMarks, setStreakMarks] = useState<StreakMarkSummary[]>(initialStreakMarks);
@@ -228,6 +252,8 @@ export function MewingCalendar({
   const [isLoadingMonth, setIsLoadingMonth] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "offline">("connecting");
   const [message, setMessage] = useState<string | null>(null);
+  const [isConfirmIncompleteOpen, setIsConfirmIncompleteOpen] = useState(false);
+  const [confettiBursts, setConfettiBursts] = useState<number[]>([]);
 
   const activeHabit = sortedHabits.find((habit) => habit.id === activeHabitId) ?? defaultHabit;
   const activeVisual = getHabitVisual(activeHabit);
@@ -310,6 +336,29 @@ export function MewingCalendar({
 
     return () => window.clearInterval(intervalId);
   }, [refreshToken]);
+
+  useEffect(() => {
+    return () => {
+      for (const timeoutId of confettiTimeoutsRef.current) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isConfirmIncompleteOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsConfirmIncompleteOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConfirmIncompleteOpen]);
 
   useEffect(() => {
     let ignore = false;
@@ -436,6 +485,10 @@ export function MewingCalendar({
     "--accent-soft": activeVisual.soft,
   };
 
+  useEffect(() => {
+    document.title = `(${activeStreak}) ${activeHabit.name} Calendar`;
+  }, [activeHabit.name, activeStreak]);
+
   function handleDayClick(date: string) {
     if (isDetailOpen && selectedDate === date) {
       setIsDetailOpen(false);
@@ -460,6 +513,18 @@ export function MewingCalendar({
     setActiveHabitId(habit.id);
     setIsHabitDrawerOpen(false);
     setMessage(null);
+  }
+
+  function triggerCompletionConfetti() {
+    const burstId = Date.now();
+    setConfettiBursts((current) => [...current.slice(-1), burstId]);
+
+    const timeoutId = window.setTimeout(() => {
+      setConfettiBursts((current) => current.filter((id) => id !== burstId));
+      confettiTimeoutsRef.current = confettiTimeoutsRef.current.filter((id) => id !== timeoutId);
+    }, 1800);
+
+    confettiTimeoutsRef.current.push(timeoutId);
   }
 
   async function persistTodayEntry(params: { completed: boolean; note: string; loadingKind: "note" | "completion" }) {
@@ -548,6 +613,9 @@ export function MewingCalendar({
       }
 
       setMessage(params.loadingKind === "note" ? "Note saved." : "Completion updated.");
+      if (params.loadingKind === "completion" && params.completed) {
+        triggerCompletionConfetti();
+      }
       await Promise.all([
         loadEntries(visibleMonth).catch(() => setMessage("Saved, but calendar refresh failed.")),
         loadStreakMarks().catch(() => setMessage("Saved, but streak refresh failed.")),
@@ -841,13 +909,18 @@ export function MewingCalendar({
             className={`completion-button ${selectedCompleted ? "completion-button-incomplete" : ""}`}
             disabled={!selectedIsEditable || isSavingNote || isTogglingCompletion}
             type="button"
-            onClick={() =>
+            onClick={() => {
+              if (selectedCompleted) {
+                setIsConfirmIncompleteOpen(true);
+                return;
+              }
+
               persistTodayEntry({
-                completed: !selectedCompleted,
+                completed: true,
                 note: draftNote,
                 loadingKind: "completion",
-              })
-            }
+              });
+            }}
           >
             {isTogglingCompletion ? (
               <Loader2 aria-hidden="true" className="spin" size={22} />
@@ -860,6 +933,56 @@ export function MewingCalendar({
           </button>
         </div>
       </aside>
+
+      {confettiBursts.map((burstId) => (
+        <div key={burstId} aria-hidden="true" className="confetti-burst">
+          <div className="confetti-pop">
+            <CheckCircle2 aria-hidden="true" size={34} />
+          </div>
+          {confettiPieces.map((pieceStyle, index) => (
+            <span key={`${burstId}-${index}`} className="confetti-piece" style={pieceStyle} />
+          ))}
+        </div>
+      ))}
+
+      {isConfirmIncompleteOpen ? (
+        <div className="confirm-modal-backdrop" role="presentation" onMouseDown={() => setIsConfirmIncompleteOpen(false)}>
+          <section
+            aria-labelledby="confirm-incomplete-title"
+            aria-modal="true"
+            className="confirm-modal"
+            role="dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="confirm-modal-icon">
+              <XCircle aria-hidden="true" size={26} />
+            </div>
+            <div className="confirm-modal-copy">
+              <h2 id="confirm-incomplete-title">Mark incomplete?</h2>
+              <p>Are you sure you want to mark today incomplete for {activeHabit.name}? This will remove today from the streak.</p>
+            </div>
+            <div className="confirm-modal-actions">
+              <button autoFocus className="confirm-cancel-button" type="button" onClick={() => setIsConfirmIncompleteOpen(false)}>
+                Keep complete
+              </button>
+              <button
+                className="confirm-danger-button"
+                type="button"
+                onClick={() => {
+                  setIsConfirmIncompleteOpen(false);
+                  persistTodayEntry({
+                    completed: false,
+                    note: draftNote,
+                    loadingKind: "completion",
+                  });
+                }}
+              >
+                Mark incomplete
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -746,6 +746,141 @@ h2 {
   transform: none;
 }
 
+.confirm-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(18, 28, 31, 0.36);
+  padding: 18px;
+  backdrop-filter: blur(8px);
+  animation: modal-backdrop-in 140ms ease both;
+}
+
+.confirm-modal {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 18px;
+  border: 1px solid rgba(22, 38, 44, 0.13);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 28px 80px rgba(20, 37, 43, 0.22);
+  padding: 22px;
+  transform-origin: center;
+  animation: modal-pop-in 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.confirm-modal-icon {
+  width: 54px;
+  height: 54px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 18px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.confirm-modal-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.confirm-modal-copy h2 {
+  font-size: 1.34rem;
+}
+
+.confirm-modal-copy p {
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.confirm-modal-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.confirm-cancel-button,
+.confirm-danger-button {
+  min-height: 48px;
+  border: 1px solid rgba(22, 38, 44, 0.12);
+  border-radius: 15px;
+  cursor: pointer;
+  font-weight: 950;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.confirm-cancel-button {
+  background: #fff;
+  color: var(--ink);
+}
+
+.confirm-danger-button {
+  background: var(--accent);
+  color: #fff;
+}
+
+.confirm-cancel-button:hover,
+.confirm-danger-button:hover {
+  transform: translateY(-1px);
+}
+
+.confirm-cancel-button:focus-visible,
+.confirm-danger-button:focus-visible {
+  outline: 3px solid rgba(15, 138, 98, 0.16);
+  outline-offset: 2px;
+}
+
+.confetti-burst {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 70;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.confetti-pop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15, 138, 98, 0.18);
+  border-radius: 50%;
+  background: #e8f7ef;
+  box-shadow:
+    0 16px 36px rgba(15, 138, 98, 0.18),
+    inset 0 0 0 8px rgba(255, 255, 255, 0.72);
+  color: var(--green);
+  transform: translate(-50%, -50%);
+  animation: confetti-pop 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 10px;
+  height: 16px;
+  border-radius: 3px;
+  background: var(--color);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--color) 28%, transparent);
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(var(--rotate));
+  animation: confetti-piece 1180ms cubic-bezier(0.17, 0.84, 0.44, 1) var(--delay) both;
+}
+
 .spin {
   animation: spin 800ms linear infinite;
 }
@@ -791,6 +926,61 @@ h2 {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes modal-backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+
+@keyframes confetti-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(20px) scale(0.66);
+  }
+
+  28% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-16px) scale(1.08);
+  }
+
+  58% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(5px) scale(0.98);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-8px) scale(0.92);
+  }
+}
+
+@keyframes confetti-piece {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--rotate)) scale(0.74);
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  55% {
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(calc(var(--rotate) + 140deg)) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + 82px)) rotate(calc(var(--rotate) + 260deg)) scale(0.88);
   }
 }
 
