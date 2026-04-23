@@ -9,6 +9,8 @@
   --accent: #e43b35;
   --accent-soft: #ffe4e2;
   --green: #0f8a62;
+  --streak: #ef6c19;
+  --streak-soft: #fff1dc;
   --shadow: 0 24px 80px rgba(20, 37, 43, 0.16);
   --habit-sidebar-width: 190px;
   --detail-panel-width: 380px;
@@ -166,6 +168,30 @@ button {
   font-weight: 850;
 }
 
+.habit-streak-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  color: #9f430b;
+  font-size: 0.86rem;
+  white-space: nowrap;
+}
+
+.fire-gif {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.habit-fire-gif {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  margin: -5px 0 -4px -3px;
+}
+
 .calendar-panel {
   width: min(100%, 460px);
   min-height: min(760px, calc(100vh - 36px));
@@ -221,6 +247,72 @@ h1 {
 h2 {
   font-size: 1.35rem;
   line-height: 1.1;
+}
+
+.header-pill-stack {
+  display: grid;
+  flex: 0 0 auto;
+  justify-items: end;
+  gap: 8px;
+}
+
+.streak-pill {
+  position: relative;
+  min-width: 132px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid rgba(239, 108, 25, 0.28);
+  border-radius: 999px;
+  background: var(--streak-soft);
+  color: #933a06;
+  box-shadow: 0 10px 24px rgba(239, 108, 25, 0.14);
+  font-size: 0.9rem;
+  font-weight: 950;
+  padding: 10px 13px;
+  white-space: nowrap;
+}
+
+.streak-fire-gif {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  margin: -7px 0 -7px -4px;
+}
+
+.streak-pill::after {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
+  border: 1px solid rgba(22, 38, 44, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(20, 37, 43, 0.16);
+  color: var(--ink);
+  content: attr(data-tooltip);
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.25;
+  opacity: 0;
+  padding: 9px 11px;
+  pointer-events: none;
+  text-align: left;
+  transform: translateY(-3px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+  visibility: hidden;
+}
+
+.streak-pill:hover::after,
+.streak-pill:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+  visibility: visible;
 }
 
 .live-pill {
@@ -399,15 +491,20 @@ h2 {
   background: #effaf5;
 }
 
-.note-dot {
+.note-icon {
   position: absolute;
   right: 10px;
   bottom: 10px;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 0 4px rgba(15, 138, 98, 0.12);
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(15, 138, 98, 0.26);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--green);
+  box-shadow: 0 6px 14px rgba(15, 138, 98, 0.16);
 }
 
 .calendar-footer {

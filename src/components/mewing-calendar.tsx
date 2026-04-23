@@ -20,6 +20,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  addDays,
   addMonths,
   getCalendarDays,
   getCalendarGridBounds,
@@ -38,6 +39,7 @@ type HabitEntrySummary = Pick<
   HabitMarkRow,
   "id" | "habit_id" | "mark_date" | "completed" | "note" | "created_at" | "updated_at"
 >;
+type StreakMarkSummary = Pick<HabitMarkRow, "habit_id" | "mark_date">;
 
 type MewingCalendarProps = {
   shareCode: string;
@@ -45,6 +47,7 @@ type MewingCalendarProps = {
   today: string;
   initialMonth: string;
   initialMarks: HabitEntrySummary[];
+  initialStreakMarks: StreakMarkSummary[];
   initialToken: CalendarToken;
   supabaseUrl: string;
   supabasePublishableKey: string;
@@ -59,6 +62,11 @@ type HabitVisual = {
 type HabitStyle = CSSProperties & {
   "--accent"?: string;
   "--accent-soft"?: string;
+};
+
+type StreakStats = {
+  count: number;
+  startDate: string | null;
 };
 
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
@@ -78,6 +86,10 @@ const habitVisuals: Record<string, HabitVisual> = {
 
 function sortEntries(entries: HabitEntrySummary[]): HabitEntrySummary[] {
   return [...entries].sort((left, right) => left.mark_date.localeCompare(right.mark_date));
+}
+
+function sortStreakMarks(streakMarks: StreakMarkSummary[]): StreakMarkSummary[] {
+  return [...streakMarks].sort((left, right) => left.mark_date.localeCompare(right.mark_date));
 }
 
 function sortHabits(habits: HabitSummary[]): HabitSummary[] {
@@ -118,6 +130,28 @@ function HabitIcon({ habit }: { habit: HabitSummary }) {
   return <Sparkles aria-hidden="true" size={18} />;
 }
 
+function FireGif({ className }: { className: string }) {
+  return <img alt="" aria-hidden="true" className={`fire-gif ${className}`} draggable={false} src="/fire-cute.gif" />;
+}
+
+function getStreakLabel(streak: number): string {
+  return `${streak} day${streak === 1 ? "" : "s"}`;
+}
+
+function calculateCurrentStreak(completedDates: Set<string>, today: string): StreakStats {
+  let cursor = completedDates.has(today) ? today : addDays(today, -1);
+  let count = 0;
+  let startDate: string | null = null;
+
+  while (completedDates.has(cursor)) {
+    count += 1;
+    startDate = cursor;
+    cursor = addDays(cursor, -1);
+  }
+
+  return { count, startDate };
+}
+
 function buildOptimisticEntry(params: {
   existing?: HabitEntrySummary;
   habitId: string;
@@ -144,6 +178,7 @@ export function MewingCalendar({
   today,
   initialMonth,
   initialMarks,
+  initialStreakMarks,
   initialToken,
   supabaseUrl,
   supabasePublishableKey,
@@ -155,6 +190,7 @@ export function MewingCalendar({
   const tokenExpiresAtRef = useRef(Date.parse(initialToken.expiresAt));
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [entries, setEntries] = useState<HabitEntrySummary[]>(initialMarks);
+  const [streakMarks, setStreakMarks] = useState<StreakMarkSummary[]>(initialStreakMarks);
   const [selectedDate, setSelectedDate] = useState(today);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isHabitDrawerOpen, setIsHabitDrawerOpen] = useState(false);
@@ -221,6 +257,24 @@ export function MewingCalendar({
     [ensureFreshToken, habitIds, supabase],
   );
 
+  const loadStreakMarks = useCallback(async () => {
+    await ensureFreshToken();
+
+    const { data, error } = await supabase
+      .from("habit_marks")
+      .select("habit_id, mark_date")
+      .in("habit_id", habitIds)
+      .eq("completed", true)
+      .lte("mark_date", today)
+      .order("mark_date", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    setStreakMarks(sortStreakMarks(data ?? []));
+  }, [ensureFreshToken, habitIds, supabase, today]);
+
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       refreshToken().catch(() => setStatus("offline"));
@@ -251,6 +305,10 @@ export function MewingCalendar({
   }, [loadEntries, visibleMonth]);
 
   useEffect(() => {
+    loadStreakMarks().catch(() => setMessage("Could not load streaks."));
+  }, [loadStreakMarks]);
+
+  useEffect(() => {
     const channel = supabase
       .channel("habit_marks:calendar")
       .on(
@@ -262,6 +320,7 @@ export function MewingCalendar({
         },
         () => {
           loadEntries(visibleMonth).catch(() => setMessage("Could not refresh entries."));
+          loadStreakMarks().catch(() => setMessage("Could not refresh streaks."));
         },
       )
       .subscribe((nextStatus) => {
@@ -278,7 +337,7 @@ export function MewingCalendar({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadEntries, supabase, visibleMonth]);
+  }, [loadEntries, loadStreakMarks, supabase, visibleMonth]);
 
   const activeEntries = useMemo(() => {
     return entries.filter((entry) => entry.habit_id === activeHabit.id);
@@ -304,6 +363,26 @@ export function MewingCalendar({
     return counts;
   }, [entries, sortedHabits, visibleMonth]);
 
+  const streakStatsByHabitId = useMemo(() => {
+    const streakStats = new Map<string, StreakStats>();
+    const completedDatesByHabitId = new Map<string, Set<string>>();
+
+    for (const habit of sortedHabits) {
+      streakStats.set(habit.id, { count: 0, startDate: null });
+      completedDatesByHabitId.set(habit.id, new Set());
+    }
+
+    for (const mark of streakMarks) {
+      completedDatesByHabitId.get(mark.habit_id)?.add(mark.mark_date);
+    }
+
+    for (const habit of sortedHabits) {
+      streakStats.set(habit.id, calculateCurrentStreak(completedDatesByHabitId.get(habit.id) ?? new Set(), today));
+    }
+
+    return streakStats;
+  }, [sortedHabits, streakMarks, today]);
+
   const selectedEntry = entriesByDate.get(selectedDate);
   const selectedCompleted = selectedEntry?.completed ?? false;
   const selectedNote = selectedEntry?.note ?? "";
@@ -318,6 +397,11 @@ export function MewingCalendar({
   const todayMonth = monthKeyFromDate(today);
   const monthLabel = getMonthLabel(visibleMonth);
   const completedCount = countsByHabitId.get(activeHabit.id) ?? 0;
+  const activeStreakStats = streakStatsByHabitId.get(activeHabit.id) ?? { count: 0, startDate: null };
+  const activeStreak = activeStreakStats.count;
+  const activeStreakTooltip = activeStreakStats.startDate
+    ? `Started on ${formatDateLabel(activeStreakStats.startDate)}`
+    : "No current streak yet";
   const noteDirty = draftNote !== selectedNote;
   const habitStyle: HabitStyle = {
     "--accent": activeVisual.accent,
@@ -357,6 +441,7 @@ export function MewingCalendar({
 
     const cleanNote = params.note.trim();
     const previousEntries = entries;
+    const previousStreakMarks = streakMarks;
     const existing = entriesByDate.get(today);
     const nextEntry = buildOptimisticEntry({
       existing,
@@ -379,6 +464,14 @@ export function MewingCalendar({
         (entry) => !(entry.habit_id === activeHabit.id && entry.mark_date === today),
       );
       return shouldDelete ? withoutToday : sortEntries([...withoutToday, nextEntry]);
+    });
+    setStreakMarks((current) => {
+      const withoutToday = current.filter(
+        (entry) => !(entry.habit_id === activeHabit.id && entry.mark_date === today),
+      );
+      return params.completed
+        ? sortStreakMarks([...withoutToday, { habit_id: activeHabit.id, mark_date: today }])
+        : withoutToday;
     });
 
     try {
@@ -427,9 +520,13 @@ export function MewingCalendar({
       }
 
       setMessage(params.loadingKind === "note" ? "Note saved." : "Completion updated.");
-      await loadEntries(visibleMonth).catch(() => setMessage("Saved, but refresh failed."));
+      await Promise.all([
+        loadEntries(visibleMonth).catch(() => setMessage("Saved, but calendar refresh failed.")),
+        loadStreakMarks().catch(() => setMessage("Saved, but streak refresh failed.")),
+      ]);
     } catch {
       setEntries(previousEntries);
+      setStreakMarks(previousStreakMarks);
       setMessage(params.loadingKind === "note" ? "Could not save the note." : "Could not update completion.");
     } finally {
       setIsSavingNote(false);
@@ -490,7 +587,10 @@ export function MewingCalendar({
                 </span>
                 <span className="habit-nav-copy">
                   <span>{habit.name}</span>
-                  <small>{countsByHabitId.get(habit.id) ?? 0} complete</small>
+                  <small className="habit-streak-label">
+                    <FireGif className="habit-fire-gif" />
+                    {getStreakLabel(streakStatsByHabitId.get(habit.id)?.count ?? 0)}
+                  </small>
                 </span>
               </button>
             );
@@ -511,12 +611,22 @@ export function MewingCalendar({
             <p className="eyebrow">Daily habit</p>
             <h1>{activeHabit.name}</h1>
           </div>
-          <div
-            className={`live-pill live-pill-${status}`}
-            title={status === "live" ? "Realtime connected" : "Realtime disconnected"}
-          >
-            {status === "live" ? <Wifi aria-hidden="true" size={16} /> : <WifiOff aria-hidden="true" size={16} />}
-            <span>{status === "live" ? "Live" : "Offline"}</span>
+          <div className="header-pill-stack">
+            <div
+              aria-label={`${getStreakLabel(activeStreak)}. ${activeStreakTooltip}`}
+              className="streak-pill"
+              data-tooltip={activeStreakTooltip}
+            >
+              <FireGif className="streak-fire-gif" />
+              <span>{getStreakLabel(activeStreak)}</span>
+            </div>
+            <div
+              className={`live-pill live-pill-${status}`}
+              title={status === "live" ? "Realtime connected" : "Realtime disconnected"}
+            >
+              {status === "live" ? <Wifi aria-hidden="true" size={16} /> : <WifiOff aria-hidden="true" size={16} />}
+              <span>{status === "live" ? "Live" : "Offline"}</span>
+            </div>
           </div>
         </header>
 
@@ -552,7 +662,8 @@ export function MewingCalendar({
         <div className={`calendar-grid ${isLoadingMonth ? "calendar-grid-loading" : ""}`}>
           {days.map((day) => {
             const entry = entriesByDate.get(day.date);
-            const hasNoteOnly = Boolean(entry && !entry.completed && entry.note.trim().length > 0);
+            const hasNote = Boolean(entry?.note.trim());
+            const hasNoteOnly = Boolean(entry && !entry.completed && hasNote);
             const isToday = day.date === today;
             const isSelected = isDetailOpen && day.date === selectedDate;
 
@@ -583,7 +694,11 @@ export function MewingCalendar({
                     <X size={44} strokeWidth={3.4} />
                   </span>
                 ) : null}
-                {hasNoteOnly ? <span className="note-dot" aria-hidden="true" /> : null}
+                {hasNote ? (
+                  <span className="note-icon" aria-hidden="true">
+                    <FileText size={14} strokeWidth={2.7} />
+                  </span>
+                ) : null}
               </button>
             );
           })}

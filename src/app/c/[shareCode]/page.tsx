@@ -98,6 +98,23 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     );
   }
 
+  const { data: streakMarks, error: streakMarksError } = await supabase
+    .from("habit_marks")
+    .select("habit_id, mark_date")
+    .in("habit_id", habitIds)
+    .eq("completed", true)
+    .lte("mark_date", today)
+    .order("mark_date", { ascending: true });
+
+  if (streakMarksError) {
+    return (
+      <SetupPanel
+        title="Could not load streaks"
+        detail="Check that the Supabase service role key and database schema are configured correctly."
+      />
+    );
+  }
+
   const initialToken = await issueCalendarAccessToken({
     calendarId: calendar.id,
     jwtSecret: config.supabaseJwtSecret,
@@ -110,6 +127,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
       today={today}
       initialMonth={initialMonth}
       initialMarks={marks ?? []}
+      initialStreakMarks={streakMarks ?? []}
       initialToken={initialToken}
       supabaseUrl={config.supabaseUrl}
       supabasePublishableKey={config.supabasePublishableKey}

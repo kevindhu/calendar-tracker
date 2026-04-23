@@ -53,6 +53,13 @@ export function addMonths(monthKey: string, amount: number): string {
   return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`;
 }
 
+export function addDays(dateString: string, amount: number): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + amount));
+
+  return formatUtcDate(date);
+}
+
 export function getMonthLabel(monthKey: string): string {
   const { year, month } = parseMonthKey(monthKey);
 
