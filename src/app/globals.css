@@ -839,46 +839,167 @@ h2 {
 
 .confetti-burst {
   position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  animation: confetti-burst-out 3600ms linear both;
+}
+
+.confetti-screen-flash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 255, 255, 0.92), transparent 13rem),
+    radial-gradient(circle at 18% 78%, rgba(255, 212, 71, 0.3), transparent 24rem),
+    radial-gradient(circle at 80% 18%, rgba(70, 217, 255, 0.28), transparent 23rem),
+    linear-gradient(135deg, rgba(223, 50, 45, 0.2), rgba(15, 138, 98, 0.16));
+  mix-blend-mode: screen;
+  opacity: 0;
+  animation: confetti-screen-flash 1200ms ease-out both;
+}
+
+.confetti-shockwave {
+  position: absolute;
   top: 50%;
   left: 50%;
-  z-index: 70;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
+  width: 38vmin;
+  height: 38vmin;
+  border: 2px solid rgba(255, 255, 255, 0.76);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 10px rgba(255, 212, 71, 0.13),
+    0 0 60px rgba(70, 217, 255, 0.26);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.08);
+  animation: confetti-shockwave 1700ms cubic-bezier(0.17, 0.84, 0.44, 1) both;
+}
+
+.confetti-shockwave-two {
+  border-color: rgba(184, 74, 255, 0.48);
+  animation-delay: 120ms;
+}
+
+.confetti-shockwave-three {
+  border-color: rgba(15, 138, 98, 0.42);
+  animation-delay: 240ms;
 }
 
 .confetti-pop {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 76px;
-  height: 76px;
+  top: 50%;
+  left: 50%;
+  width: clamp(112px, 16vmin, 170px);
+  height: clamp(112px, 16vmin, 170px);
   display: grid;
   place-items: center;
-  border: 1px solid rgba(15, 138, 98, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 50%;
-  background: #e8f7ef;
+  background:
+    radial-gradient(circle at 50% 45%, #fff 0 31%, rgba(255, 255, 255, 0.72) 32% 48%, transparent 49%),
+    conic-gradient(from 20deg, #ffd447, #46d9ff, #b84aff, #df322d, #6af078, #ffd447);
   box-shadow:
-    0 16px 36px rgba(15, 138, 98, 0.18),
-    inset 0 0 0 8px rgba(255, 255, 255, 0.72);
+    0 24px 70px rgba(15, 138, 98, 0.3),
+    0 0 90px rgba(255, 212, 71, 0.34),
+    inset 0 0 0 13px rgba(255, 255, 255, 0.42);
   color: var(--green);
   transform: translate(-50%, -50%);
-  animation: confetti-pop 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: confetti-pop 1900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.confetti-pop::before,
+.confetti-pop::after {
+  position: absolute;
+  inset: -18px;
+  border-radius: inherit;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.confetti-pop::before {
+  border: 2px dashed rgba(255, 255, 255, 0.78);
+  animation: confetti-pop-halo 1500ms ease-out 80ms both;
+}
+
+.confetti-pop::after {
+  border: 2px solid rgba(70, 217, 255, 0.34);
+  box-shadow: 0 0 42px rgba(184, 74, 255, 0.26);
+  animation: confetti-pop-halo 1500ms ease-out 220ms reverse both;
+}
+
+.confetti-pop svg {
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 6px 10px rgba(15, 138, 98, 0.24));
+}
+
+.confetti-pop-sparkle {
+  position: absolute;
+  z-index: 3;
+  color: #ffd447;
+  animation: confetti-sparkle-pop 1300ms ease-out both;
+}
+
+.confetti-pop-sparkle-left {
+  top: 19%;
+  left: 20%;
+}
+
+.confetti-pop-sparkle-right {
+  right: 18%;
+  bottom: 21%;
+  animation-delay: 120ms;
 }
 
 .confetti-piece {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 10px;
-  height: 16px;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 20px;
   border-radius: 3px;
   background: var(--color);
-  box-shadow: 0 8px 16px color-mix(in srgb, var(--color) 28%, transparent);
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--color) 34%, transparent),
+    0 0 14px color-mix(in srgb, var(--color) 26%, transparent);
   opacity: 0;
   transform: translate(-50%, -50%) rotate(var(--rotate));
-  animation: confetti-piece 1180ms cubic-bezier(0.17, 0.84, 0.44, 1) var(--delay) both;
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: confetti-piece var(--duration) cubic-bezier(0.16, 0.94, 0.34, 1) var(--delay) both;
+}
+
+.confetti-piece-ribbon {
+  width: 8px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff8, transparent 34%), var(--color);
+}
+
+.confetti-piece-square {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+}
+
+.confetti-piece-circle {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+
+.confetti-piece-diamond {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+}
+
+.confetti-piece-spark {
+  width: 18px;
+  height: 18px;
+  clip-path: polygon(50% 0, 62% 35%, 100% 50%, 62% 65%, 50% 100%, 38% 65%, 0 50%, 38% 35%);
 }
 
 .spin {
@@ -942,45 +1063,130 @@ h2 {
   }
 }
 
-@keyframes confetti-pop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) translateY(20px) scale(0.66);
-  }
-
-  28% {
+@keyframes confetti-burst-out {
+  0%,
+  88% {
     opacity: 1;
-    transform: translate(-50%, -50%) translateY(-16px) scale(1.08);
-  }
-
-  58% {
-    opacity: 1;
-    transform: translate(-50%, -50%) translateY(5px) scale(0.98);
   }
 
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) translateY(-8px) scale(0.92);
+  }
+}
+
+@keyframes confetti-screen-flash {
+  0% {
+    opacity: 0;
+  }
+
+  11% {
+    opacity: 0.88;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes confetti-shockwave {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.08);
+  }
+
+  16% {
+    opacity: 0.86;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(4.8);
+  }
+}
+
+@keyframes confetti-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(28px) rotate(-10deg) scale(0.38);
+  }
+
+  16% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-18px) rotate(7deg) scale(1.16);
+  }
+
+  42% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(4px) rotate(-3deg) scale(0.96);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) translateY(-6px) rotate(2deg) scale(1.02);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) translateY(-22px) rotate(0deg) scale(0.84);
+  }
+}
+
+@keyframes confetti-pop-halo {
+  0% {
+    opacity: 0;
+    transform: scale(0.64) rotate(0deg);
+  }
+
+  24% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.55) rotate(130deg);
+  }
+}
+
+@keyframes confetti-sparkle-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.1) rotate(-24deg);
+  }
+
+  26% {
+    opacity: 1;
+    transform: scale(1.25) rotate(12deg);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(0.7) rotate(64deg);
   }
 }
 
 @keyframes confetti-piece {
   0% {
     opacity: 0;
-    transform: translate(-50%, -50%) rotate(var(--rotate)) scale(0.74);
+    transform: translate(-50%, -50%) rotate(var(--rotate)) scale(0.28);
   }
 
-  18% {
+  8% {
     opacity: 1;
+    transform: translate(-50%, -50%) rotate(calc(var(--rotate) + 90deg)) scale(var(--scale));
   }
 
-  55% {
-    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(calc(var(--rotate) + 140deg)) scale(1);
+  46% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(calc(var(--rotate) + var(--twirl))) scale(var(--scale));
+  }
+
+  72% {
+    opacity: 0.94;
   }
 
   100% {
     opacity: 0;
-    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + 82px)) rotate(calc(var(--rotate) + 260deg)) scale(0.88);
+    transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y) + var(--fall))) rotate(calc(var(--rotate) + var(--twirl) + 240deg)) scale(0.7);
   }
 }
 

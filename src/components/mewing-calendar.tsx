@@ -74,9 +74,18 @@ type FireVariant = "default" | "blue" | "purple";
 type ConfettiPieceStyle = CSSProperties & {
   "--color"?: string;
   "--delay"?: string;
+  "--duration"?: string;
+  "--fall"?: string;
   "--rotate"?: string;
+  "--scale"?: string;
+  "--twirl"?: string;
   "--x"?: string;
   "--y"?: string;
+};
+
+type ConfettiPiece = {
+  className: string;
+  style: ConfettiPieceStyle;
 };
 
 const fireGifSources: Record<FireVariant, string> = {
@@ -85,20 +94,40 @@ const fireGifSources: Record<FireVariant, string> = {
   purple: "/cute_flame3_purple.gif",
 };
 
-const confettiPieces: ConfettiPieceStyle[] = [
-  { "--color": "#df322d", "--delay": "0ms", "--rotate": "-18deg", "--x": "-104px", "--y": "-104px" },
-  { "--color": "#0f8a62", "--delay": "42ms", "--rotate": "22deg", "--x": "-72px", "--y": "-134px" },
-  { "--color": "#2f7cff", "--delay": "84ms", "--rotate": "-34deg", "--x": "-36px", "--y": "-112px" },
-  { "--color": "#ef6c19", "--delay": "20ms", "--rotate": "16deg", "--x": "0px", "--y": "-146px" },
-  { "--color": "#b84aff", "--delay": "68ms", "--rotate": "-10deg", "--x": "42px", "--y": "-120px" },
-  { "--color": "#ffd447", "--delay": "106ms", "--rotate": "30deg", "--x": "76px", "--y": "-136px" },
-  { "--color": "#46d9ff", "--delay": "130ms", "--rotate": "-24deg", "--x": "108px", "--y": "-100px" },
-  { "--color": "#df322d", "--delay": "162ms", "--rotate": "38deg", "--x": "-92px", "--y": "-58px" },
-  { "--color": "#0f8a62", "--delay": "148ms", "--rotate": "-42deg", "--x": "-48px", "--y": "-78px" },
-  { "--color": "#ffd447", "--delay": "188ms", "--rotate": "12deg", "--x": "52px", "--y": "-76px" },
-  { "--color": "#b84aff", "--delay": "220ms", "--rotate": "-28deg", "--x": "96px", "--y": "-54px" },
-  { "--color": "#46d9ff", "--delay": "240ms", "--rotate": "24deg", "--x": "18px", "--y": "-94px" },
+const confettiColors = [
+  "#df322d",
+  "#0f8a62",
+  "#2f7cff",
+  "#ef6c19",
+  "#b84aff",
+  "#ffd447",
+  "#46d9ff",
+  "#ff4fa3",
+  "#6af078",
+  "#fff1a6",
 ];
+const confettiShapes = ["ribbon", "square", "circle", "diamond", "spark"] as const;
+const confettiPieces: ConfettiPiece[] = Array.from({ length: 96 }, (_, index) => {
+  const angle = ((index * 137.508 + (index % 6) * 17) * Math.PI) / 180;
+  const xDistance = 38 + ((index * 19) % 66);
+  const yDistance = 30 + ((index * 23) % 58);
+  const shape = confettiShapes[index % confettiShapes.length];
+
+  return {
+    className: `confetti-piece-${shape}`,
+    style: {
+      "--color": confettiColors[index % confettiColors.length],
+      "--delay": `${(index % 18) * 24}ms`,
+      "--duration": `${2300 + (index % 10) * 110}ms`,
+      "--fall": `${20 + (index % 8) * 7}vh`,
+      "--rotate": `${(index * 47) % 360}deg`,
+      "--scale": `${0.82 + (index % 7) * 0.07}`,
+      "--twirl": `${420 + (index % 9) * 80}deg`,
+      "--x": `${Math.cos(angle) >= 0 ? xDistance : -xDistance}vw`,
+      "--y": `${Math.sin(angle) >= 0 ? yDistance : -yDistance}vh`,
+    },
+  };
+});
 
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -554,12 +583,12 @@ export function MewingCalendar({
 
   function triggerCompletionConfetti() {
     const burstId = Date.now();
-    setConfettiBursts((current) => [...current.slice(-1), burstId]);
+    setConfettiBursts((current) => [...current.slice(-2), burstId]);
 
     const timeoutId = window.setTimeout(() => {
       setConfettiBursts((current) => current.filter((id) => id !== burstId));
       confettiTimeoutsRef.current = confettiTimeoutsRef.current.filter((id) => id !== timeoutId);
-    }, 1800);
+    }, 3600);
 
     confettiTimeoutsRef.current.push(timeoutId);
   }
@@ -973,11 +1002,17 @@ export function MewingCalendar({
 
       {confettiBursts.map((burstId) => (
         <div key={burstId} aria-hidden="true" className="confetti-burst">
+          <div className="confetti-screen-flash" />
+          <span className="confetti-shockwave confetti-shockwave-one" />
+          <span className="confetti-shockwave confetti-shockwave-two" />
+          <span className="confetti-shockwave confetti-shockwave-three" />
           <div className="confetti-pop">
-            <CheckCircle2 aria-hidden="true" size={34} />
+            <Sparkles aria-hidden="true" className="confetti-pop-sparkle confetti-pop-sparkle-left" size={22} />
+            <CheckCircle2 aria-hidden="true" size={48} />
+            <Sparkles aria-hidden="true" className="confetti-pop-sparkle confetti-pop-sparkle-right" size={22} />
           </div>
-          {confettiPieces.map((pieceStyle, index) => (
-            <span key={`${burstId}-${index}`} className="confetti-piece" style={pieceStyle} />
+          {confettiPieces.map((piece, index) => (
+            <span key={`${burstId}-${index}`} className={`confetti-piece ${piece.className}`} style={piece.style} />
           ))}
         </div>
       ))}
