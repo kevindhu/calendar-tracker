@@ -69,6 +69,14 @@ type StreakStats = {
   startDate: string | null;
 };
 
+type FireVariant = "default" | "blue" | "purple";
+
+const fireGifSources: Record<FireVariant, string> = {
+  default: "/cute_flame3.gif",
+  blue: "/cute_flame3_blue.gif",
+  purple: "/cute_flame3_purple.gif",
+};
+
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
 const habitVisuals: Record<string, HabitVisual> = {
@@ -130,8 +138,28 @@ function HabitIcon({ habit }: { habit: HabitSummary }) {
   return <Sparkles aria-hidden="true" size={18} />;
 }
 
-function FireGif({ className }: { className: string }) {
-  return <img alt="" aria-hidden="true" className={`fire-gif ${className}`} draggable={false} src="/cute_flame3.gif" />;
+function FireGif({ className, variant }: { className: string; variant: FireVariant }) {
+  return (
+    <img
+      alt=""
+      aria-hidden="true"
+      className={`fire-gif ${className}`}
+      draggable={false}
+      src={fireGifSources[variant]}
+    />
+  );
+}
+
+function getFireVariant(streak: number): FireVariant {
+  if (streak >= 100) {
+    return "purple";
+  }
+
+  if (streak >= 30) {
+    return "blue";
+  }
+
+  return "default";
 }
 
 function getStreakLabel(streak: number): string {
@@ -568,6 +596,7 @@ export function MewingCalendar({
           {sortedHabits.map((habit) => {
             const isActive = habit.id === activeHabit.id;
             const visual = getHabitVisual(habit);
+            const habitStreak = streakStatsByHabitId.get(habit.id)?.count ?? 0;
             const itemStyle: HabitStyle = {
               "--accent": visual.accent,
               "--accent-soft": visual.soft,
@@ -588,8 +617,8 @@ export function MewingCalendar({
                 <span className="habit-nav-copy">
                   <span>{habit.name}</span>
                   <small className="habit-streak-label">
-                    <FireGif className="habit-fire-gif" />
-                    {getStreakLabel(streakStatsByHabitId.get(habit.id)?.count ?? 0)}
+                    <FireGif className="habit-fire-gif" variant={getFireVariant(habitStreak)} />
+                    {getStreakLabel(habitStreak)}
                   </small>
                 </span>
               </button>
@@ -617,7 +646,7 @@ export function MewingCalendar({
               className="streak-pill"
               data-tooltip={activeStreakTooltip}
             >
-              <FireGif className="streak-fire-gif" />
+              <FireGif className="streak-fire-gif" variant={getFireVariant(activeStreak)} />
               <span>{getStreakLabel(activeStreak)}</span>
             </div>
             <div
