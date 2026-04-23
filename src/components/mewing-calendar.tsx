@@ -131,7 +131,7 @@ function HabitIcon({ habit }: { habit: HabitSummary }) {
 }
 
 function FireGif({ className }: { className: string }) {
-  return <img alt="" aria-hidden="true" className={`fire-gif ${className}`} draggable={false} src="/fire-cute.gif" />;
+  return <img alt="" aria-hidden="true" className={`fire-gif ${className}`} draggable={false} src="/cute_flame3.gif" />;
 }
 
 function getStreakLabel(streak: number): string {
