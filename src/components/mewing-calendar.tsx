@@ -189,6 +189,15 @@ function getStreakLabel(streak: number): string {
   return `${streak} day${streak === 1 ? "" : "s"}`;
 }
 
+function shouldIgnoreMonthHotkeys(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName;
+  return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
+}
+
 function calculateCurrentStreak(completedDates: Set<string>, today: string): StreakStats {
   let cursor = completedDates.has(today) ? today : addDays(today, -1);
   let count = 0;
@@ -353,6 +362,34 @@ export function MewingCalendar({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setIsConfirmIncompleteOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConfirmIncompleteOpen]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        shouldIgnoreMonthHotkeys(event.target) ||
+        isConfirmIncompleteOpen
+      ) {
+        return;
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setVisibleMonth((current) => addMonths(current, -1));
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setVisibleMonth((current) => addMonths(current, 1));
       }
     }
 
