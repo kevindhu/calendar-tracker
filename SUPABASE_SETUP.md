@@ -142,11 +142,13 @@ Run the migration before deploying the updated frontend. The redesigned app read
 
 Existing X marks become completed days automatically.
 
-## Existing Project: Add Manga
+## Existing Project: Add Starter Habits
 
 If your app is already live and only needs the Manga habit, run `supabase/add-manga-habit.sql` in the Supabase SQL Editor.
 
-Before running it, make sure the `calendar_uuid` value in that file matches `CALENDAR_ID`.
+If your app also needs the Bouldering habit, run `supabase/add-bouldering-habit.sql` in the Supabase SQL Editor.
+
+Before running either file, make sure the `calendar_uuid` value in that file matches `CALENDAR_ID`.
 
 ## Step 8: Enable Realtime
 

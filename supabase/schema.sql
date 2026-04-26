@@ -195,4 +195,10 @@ begin
   on conflict (calendar_id, slug) do update
   set name = excluded.name,
       color = excluded.color;
+
+  insert into public.habits (calendar_id, name, slug, color)
+  values (calendar_uuid, 'Bouldering', 'bouldering', '#2563eb')
+  on conflict (calendar_id, slug) do update
+  set name = excluded.name,
+      color = excluded.color;
 end $$;

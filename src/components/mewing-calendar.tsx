@@ -9,6 +9,7 @@ import {
   FileText,
   Loader2,
   Menu,
+  Mountain,
   RotateCcw,
   Save,
   Sparkles,
@@ -54,7 +55,7 @@ type MewingCalendarProps = {
 };
 
 type HabitVisual = {
-  icon: "sparkles" | "book";
+  icon: "sparkles" | "book" | "mountain";
   accent: string;
   soft: string;
 };
@@ -142,6 +143,11 @@ const habitVisuals: Record<string, HabitVisual> = {
     accent: "#0f8a62",
     soft: "#e2f7ed",
   },
+  bouldering: {
+    icon: "mountain",
+    accent: "#2563eb",
+    soft: "#dbeafe",
+  },
 };
 
 function sortEntries(entries: HabitEntrySummary[]): HabitEntrySummary[] {
@@ -185,6 +191,10 @@ function HabitIcon({ habit }: { habit: HabitSummary }) {
 
   if (visual.icon === "book") {
     return <BookOpen aria-hidden="true" size={18} />;
+  }
+
+  if (visual.icon === "mountain") {
+    return <Mountain aria-hidden="true" size={18} />;
   }
 
   return <Sparkles aria-hidden="true" size={18} />;

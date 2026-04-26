@@ -76,7 +76,7 @@ Follow [SUPABASE_SETUP.md](./SUPABASE_SETUP.md), then run the SQL in [supabase/s
 Important setup notes:
 
 - Make sure the `calendar_uuid` near the bottom of `supabase/schema.sql` matches `CALENDAR_ID`
-- The starter data currently inserts example habits named `Mewing` and `Manga`
+- The starter data currently inserts example habits named `Mewing`, `Manga`, and `Bouldering`
 - Those are just seed rows; this app is not limited to those routines
 
 If you want different starter routines, edit the `public.habits` inserts near the bottom of [supabase/schema.sql](./supabase/schema.sql) before running it, or update the rows later in Supabase.
@@ -112,7 +112,7 @@ Without this, the app still works, but mark/note/streak changes will not live up
 
 If you already created the original database before notes existed, run [supabase/notes-migration.sql](./supabase/notes-migration.sql).
 
-If you are upgrading an older single-habit setup and want the old Manga example inserted, run [supabase/add-manga-habit.sql](./supabase/add-manga-habit.sql).
+If you are upgrading an older setup and want the Manga or Bouldering examples inserted, run [supabase/add-manga-habit.sql](./supabase/add-manga-habit.sql) or [supabase/add-bouldering-habit.sql](./supabase/add-bouldering-habit.sql).
 
 For brand new installs, use [supabase/schema.sql](./supabase/schema.sql) and you do not need those extra migrations.
 
