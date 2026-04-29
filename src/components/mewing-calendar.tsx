@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
+  Gamepad2,
   Loader2,
   Menu,
   Mountain,
@@ -33,7 +34,11 @@ import { createBrowserSupabaseClient } from "@/lib/supabase";
 import type { HabitMarkRow, HabitRow } from "@/lib/supabase-types";
 
 const NOTE_LIMIT = 280;
-const DEFAULT_ACTIVE_HABIT = "mewing";
+const DEFAULT_ACTIVE_HABIT = "roblox";
+const HABIT_TAB_ORDER = ["roblox", "manga", "mewing", "bouldering"];
+const HABIT_STREAK_INTERVAL_DAYS: Record<string, number> = {
+  bouldering: 2,
+};
 
 type HabitSummary = Pick<HabitRow, "id" | "name" | "slug" | "color">;
 type HabitEntrySummary = Pick<
@@ -55,7 +60,7 @@ type MewingCalendarProps = {
 };
 
 type HabitVisual = {
-  icon: "sparkles" | "book" | "mountain";
+  icon: "sparkles" | "book" | "mountain" | "gamepad";
   accent: string;
   soft: string;
 };
@@ -133,6 +138,11 @@ const confettiPieces: ConfettiPiece[] = Array.from({ length: 96 }, (_, index) =>
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
 const habitVisuals: Record<string, HabitVisual> = {
+  roblox: {
+    icon: "gamepad",
+    accent: "#111827",
+    soft: "#e5e7eb",
+  },
   mewing: {
     icon: "sparkles",
     accent: "#df322d",
@@ -160,8 +170,15 @@ function sortStreakMarks(streakMarks: StreakMarkSummary[]): StreakMarkSummary[] 
 
 function sortHabits(habits: HabitSummary[]): HabitSummary[] {
   return [...habits].sort((left, right) => {
-    if (left.slug === DEFAULT_ACTIVE_HABIT) return -1;
-    if (right.slug === DEFAULT_ACTIVE_HABIT) return 1;
+    const leftOrder = HABIT_TAB_ORDER.indexOf(left.slug);
+    const rightOrder = HABIT_TAB_ORDER.indexOf(right.slug);
+
+    if (leftOrder !== -1 || rightOrder !== -1) {
+      if (leftOrder === -1) return 1;
+      if (rightOrder === -1) return -1;
+      return leftOrder - rightOrder;
+    }
+
     return left.name.localeCompare(right.name);
   });
 }
@@ -195,6 +212,10 @@ function HabitIcon({ habit }: { habit: HabitSummary }) {
 
   if (visual.icon === "mountain") {
     return <Mountain aria-hidden="true" size={18} />;
+  }
+
+  if (visual.icon === "gamepad") {
+    return <Gamepad2 aria-hidden="true" size={18} />;
   }
 
   return <Sparkles aria-hidden="true" size={18} />;
@@ -237,15 +258,27 @@ function shouldIgnoreMonthHotkeys(target: EventTarget | null): boolean {
   return target.isContentEditable || tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT";
 }
 
-function calculateCurrentStreak(completedDates: Set<string>, today: string): StreakStats {
-  let cursor = completedDates.has(today) ? today : addDays(today, -1);
+function calculateCurrentStreak(completedDates: Set<string>, today: string, intervalDays = 1): StreakStats {
+  const safeIntervalDays = Math.max(1, Math.floor(intervalDays));
+  const dates = [...completedDates].filter((date) => date <= today).sort((left, right) => right.localeCompare(left));
+  const latestDate = dates[0];
+
+  if (!latestDate || latestDate < addDays(today, -safeIntervalDays)) {
+    return { count: 0, startDate: null };
+  }
+
+  let previousDate = latestDate;
   let count = 0;
   let startDate: string | null = null;
 
-  while (completedDates.has(cursor)) {
+  for (const date of dates) {
+    if (date < addDays(previousDate, -safeIntervalDays)) {
+      break;
+    }
+
     count += 1;
-    startDate = cursor;
-    cursor = addDays(cursor, -1);
+    startDate = date;
+    previousDate = date;
   }
 
   return { count, startDate };
@@ -530,7 +563,14 @@ export function MewingCalendar({
     }
 
     for (const habit of sortedHabits) {
-      streakStats.set(habit.id, calculateCurrentStreak(completedDatesByHabitId.get(habit.id) ?? new Set(), today));
+      streakStats.set(
+        habit.id,
+        calculateCurrentStreak(
+          completedDatesByHabitId.get(habit.id) ?? new Set(),
+          today,
+          HABIT_STREAK_INTERVAL_DAYS[habit.slug],
+        ),
+      );
     }
 
     return streakStats;

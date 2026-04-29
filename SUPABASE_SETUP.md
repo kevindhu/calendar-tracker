@@ -128,7 +128,7 @@ Then copy the full file into the Supabase **SQL Editor** and run it. It creates:
 - `habit_marks`
 - note/completion columns on `habit_marks`
 - RLS policies
-- the starter `Mewing` and `Manga` habits
+- the starter `Roblox`, `Manga`, `Mewing`, and `Bouldering` habits
 
 ## Existing Project: Add Notes
 
@@ -144,9 +144,9 @@ Existing X marks become completed days automatically.
 
 ## Existing Project: Add Starter Habits
 
-If your app is already live and only needs the Manga habit, run `supabase/add-manga-habit.sql` in the Supabase SQL Editor.
+If your app is already live and only needs the Roblox habit, run `supabase/add-roblox-habit.sql` in the Supabase SQL Editor.
 
-If your app also needs the Bouldering habit, run `supabase/add-bouldering-habit.sql` in the Supabase SQL Editor.
+If your app also needs the Manga or Bouldering habit, run `supabase/add-manga-habit.sql` or `supabase/add-bouldering-habit.sql` in the Supabase SQL Editor.
 
 Before running either file, make sure the `calendar_uuid` value in that file matches `CALENDAR_ID`.
 
@@ -183,8 +183,8 @@ Expected behavior:
 
 - `/` returns 404.
 - Wrong share codes return 404.
-- The valid route opens the Mewing calendar.
-- Desktop shows the left habit sidebar with Mewing and Manga.
+- The valid route opens the Roblox calendar.
+- Desktop shows the left habit sidebar with Roblox, Manga, Mewing, and Bouldering.
 - Mobile uses the hamburger button to open habit navigation.
 - Clicking any day opens the note panel.
 - Only today can be edited.

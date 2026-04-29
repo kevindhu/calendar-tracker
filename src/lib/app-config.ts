@@ -1,7 +1,7 @@
 export const APP_NAME = "Mewing Calendar";
 export const APP_TIME_ZONE = "America/Los_Angeles";
-export const DEFAULT_HABIT_NAME = "Mewing";
-export const DEFAULT_HABIT_SLUG = "mewing";
+export const DEFAULT_HABIT_NAME = "Roblox";
+export const DEFAULT_HABIT_SLUG = "roblox";
 export const TOKEN_TTL_SECONDS = 15 * 60;
 
 export type RuntimeConfig = {

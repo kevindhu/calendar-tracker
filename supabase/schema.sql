@@ -185,6 +185,12 @@ begin
   on conflict (id) do update set name = excluded.name;
 
   insert into public.habits (calendar_id, name, slug, color)
+  values (calendar_uuid, 'Roblox', 'roblox', '#111827')
+  on conflict (calendar_id, slug) do update
+  set name = excluded.name,
+      color = excluded.color;
+
+  insert into public.habits (calendar_id, name, slug, color)
   values (calendar_uuid, 'Mewing', 'mewing', '#df322d')
   on conflict (calendar_id, slug) do update
   set name = excluded.name,
