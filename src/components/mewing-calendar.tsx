@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import {
+  BellRing,
   BookOpen,
   CheckCircle2,
   ChevronLeft,
@@ -72,6 +73,7 @@ type HabitStyle = CSSProperties & {
 
 type StreakStats = {
   count: number;
+  needsCheckIn: boolean;
   startDate: string | null;
 };
 
@@ -262,11 +264,13 @@ function calculateCurrentStreak(completedDates: Set<string>, today: string, inte
   const safeIntervalDays = Math.max(1, Math.floor(intervalDays));
   const dates = [...completedDates].filter((date) => date <= today).sort((left, right) => right.localeCompare(left));
   const latestDate = dates[0];
+  const lastGraceDate = addDays(today, -safeIntervalDays);
 
-  if (!latestDate || latestDate < addDays(today, -safeIntervalDays)) {
-    return { count: 0, startDate: null };
+  if (!latestDate || latestDate < lastGraceDate) {
+    return { count: 0, needsCheckIn: false, startDate: null };
   }
 
+  const needsCheckIn = latestDate === lastGraceDate;
   let previousDate = latestDate;
   let count = 0;
   let startDate: string | null = null;
@@ -281,7 +285,7 @@ function calculateCurrentStreak(completedDates: Set<string>, today: string, inte
     previousDate = date;
   }
 
-  return { count, startDate };
+  return { count, needsCheckIn, startDate };
 }
 
 function buildOptimisticEntry(params: {
@@ -554,7 +558,7 @@ export function MewingCalendar({
     const completedDatesByHabitId = new Map<string, Set<string>>();
 
     for (const habit of sortedHabits) {
-      streakStats.set(habit.id, { count: 0, startDate: null });
+      streakStats.set(habit.id, { count: 0, needsCheckIn: false, startDate: null });
       completedDatesByHabitId.set(habit.id, new Set());
     }
 
@@ -590,7 +594,11 @@ export function MewingCalendar({
   const todayMonth = monthKeyFromDate(today);
   const monthLabel = getMonthLabel(visibleMonth);
   const completedCount = countsByHabitId.get(activeHabit.id) ?? 0;
-  const activeStreakStats = streakStatsByHabitId.get(activeHabit.id) ?? { count: 0, startDate: null };
+  const activeStreakStats = streakStatsByHabitId.get(activeHabit.id) ?? {
+    count: 0,
+    needsCheckIn: false,
+    startDate: null,
+  };
   const activeStreak = activeStreakStats.count;
   const activeStreakTooltip = activeStreakStats.startDate
     ? `Started on ${formatDateLabel(activeStreakStats.startDate)}`
@@ -780,7 +788,13 @@ export function MewingCalendar({
           {sortedHabits.map((habit) => {
             const isActive = habit.id === activeHabit.id;
             const visual = getHabitVisual(habit);
-            const habitStreak = streakStatsByHabitId.get(habit.id)?.count ?? 0;
+            const habitStreakStats = streakStatsByHabitId.get(habit.id) ?? {
+              count: 0,
+              needsCheckIn: false,
+              startDate: null,
+            };
+            const habitStreak = habitStreakStats.count;
+            const needsCheckIn = habitStreakStats.needsCheckIn;
             const itemStyle: HabitStyle = {
               "--accent": visual.accent,
               "--accent-soft": visual.soft,
@@ -789,9 +803,19 @@ export function MewingCalendar({
             return (
               <button
                 key={habit.id}
+                aria-label={`${habit.name}, ${getStreakLabel(habitStreak)}${
+                  needsCheckIn ? ", check in today to keep your streak" : ""
+                }`}
                 aria-current={isActive ? "page" : undefined}
-                className={`habit-nav-item ${isActive ? "habit-nav-item-active" : ""}`}
+                className={[
+                  "habit-nav-item",
+                  isActive ? "habit-nav-item-active" : "",
+                  needsCheckIn ? "habit-nav-item-check-in" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
                 style={itemStyle}
+                title={needsCheckIn ? "Check in today to keep your streak" : undefined}
                 type="button"
                 onClick={() => handleHabitSelect(habit)}
               >
@@ -805,6 +829,11 @@ export function MewingCalendar({
                     {getStreakLabel(habitStreak)}
                   </small>
                 </span>
+                {needsCheckIn ? (
+                  <span className="habit-check-in-icon" aria-hidden="true">
+                    <BellRing size={17} strokeWidth={2.7} />
+                  </span>
+                ) : null}
               </button>
             );
           })}

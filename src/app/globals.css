@@ -113,7 +113,7 @@ button {
   width: 100%;
   min-height: 64px;
   display: grid;
-  grid-template-columns: 38px 1fr;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
   border: 1px solid rgba(22, 38, 44, 0.1);
@@ -137,6 +137,10 @@ button {
 .habit-nav-item-active {
   border-color: color-mix(in srgb, var(--accent) 38%, transparent);
   background: var(--accent-soft);
+}
+
+.habit-nav-item-check-in {
+  border-color: rgba(239, 108, 25, 0.42);
 }
 
 .habit-nav-icon {
@@ -176,6 +180,18 @@ button {
   color: #9f430b;
   font-size: 0.86rem;
   white-space: nowrap;
+}
+
+.habit-check-in-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(239, 108, 25, 0.28);
+  border-radius: 999px;
+  background: var(--streak-soft);
+  color: #933a06;
+  box-shadow: 0 8px 18px rgba(239, 108, 25, 0.14);
 }
 
 .fire-gif {
