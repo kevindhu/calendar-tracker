@@ -92,6 +92,40 @@ export type Database = {
           },
         ];
       };
+      calendar_day_flags: {
+        Row: {
+          id: string;
+          calendar_id: string;
+          flag_date: string;
+          important: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          calendar_id: string;
+          flag_date: string;
+          important?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          calendar_id?: string;
+          flag_date?: string;
+          important?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "calendar_day_flags_calendar_id_fkey";
+            columns: ["calendar_id"];
+            referencedRelation: "calendars";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -103,3 +137,4 @@ export type Database = {
 export type CalendarRow = Database["public"]["Tables"]["calendars"]["Row"];
 export type HabitRow = Database["public"]["Tables"]["habits"]["Row"];
 export type HabitMarkRow = Database["public"]["Tables"]["habit_marks"]["Row"];
+export type CalendarDayFlagRow = Database["public"]["Tables"]["calendar_day_flags"]["Row"];

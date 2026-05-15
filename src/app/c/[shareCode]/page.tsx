@@ -115,6 +115,15 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     );
   }
 
+  const { data: dayFlags, error: dayFlagsError } = await supabase
+    .from("calendar_day_flags")
+    .select("id, calendar_id, flag_date, important, created_at, updated_at")
+    .eq("calendar_id", calendar.id)
+    .gte("flag_date", start)
+    .lte("flag_date", end)
+    .eq("important", true)
+    .order("flag_date", { ascending: true });
+
   const initialToken = await issueCalendarAccessToken({
     calendarId: calendar.id,
     jwtSecret: config.supabaseJwtSecret,
@@ -123,11 +132,13 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
   return (
     <MewingCalendar
       shareCode={shareCode}
+      calendarId={calendar.id}
       habits={habits}
       today={today}
       initialMonth={initialMonth}
       initialMarks={marks ?? []}
       initialStreakMarks={streakMarks ?? []}
+      initialDayFlags={dayFlagsError ? [] : (dayFlags ?? [])}
       initialToken={initialToken}
       supabaseUrl={config.supabaseUrl}
       supabasePublishableKey={config.supabasePublishableKey}

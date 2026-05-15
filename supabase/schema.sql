@@ -28,9 +28,23 @@ create table if not exists public.habit_marks (
   unique (habit_id, mark_date)
 );
 
+create table if not exists public.calendar_day_flags (
+  id uuid primary key default gen_random_uuid(),
+  calendar_id uuid not null references public.calendars(id) on delete cascade,
+  flag_date date not null,
+  important boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (calendar_id, flag_date)
+);
+
 alter table public.habit_marks
   add column if not exists completed boolean not null default true,
   add column if not exists note text not null default '',
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.calendar_day_flags
+  add column if not exists important boolean not null default true,
   add column if not exists updated_at timestamptz not null default now();
 
 do $$
@@ -48,6 +62,7 @@ begin
 end $$;
 
 alter table public.habit_marks replica identity full;
+alter table public.calendar_day_flags replica identity full;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -62,6 +77,12 @@ $$;
 drop trigger if exists set_habit_marks_updated_at on public.habit_marks;
 create trigger set_habit_marks_updated_at
 before update on public.habit_marks
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists set_calendar_day_flags_updated_at on public.calendar_day_flags;
+create trigger set_calendar_day_flags_updated_at
+before update on public.calendar_day_flags
 for each row
 execute function public.set_updated_at();
 
@@ -84,6 +105,7 @@ $$;
 alter table public.calendars enable row level security;
 alter table public.habits enable row level security;
 alter table public.habit_marks enable row level security;
+alter table public.calendar_day_flags enable row level security;
 
 drop policy if exists "Calendars are visible to their secret token" on public.calendars;
 create policy "Calendars are visible to their secret token"
@@ -167,13 +189,44 @@ using (
   )
 );
 
+drop policy if exists "Day flags are visible to their calendar token" on public.calendar_day_flags;
+create policy "Day flags are visible to their calendar token"
+on public.calendar_day_flags
+for select
+to authenticated
+using (calendar_id = public.current_calendar_id());
+
+drop policy if exists "Day flags can be added to their calendar" on public.calendar_day_flags;
+create policy "Day flags can be added to their calendar"
+on public.calendar_day_flags
+for insert
+to authenticated
+with check (calendar_id = public.current_calendar_id());
+
+drop policy if exists "Day flags can be updated in their calendar" on public.calendar_day_flags;
+create policy "Day flags can be updated in their calendar"
+on public.calendar_day_flags
+for update
+to authenticated
+using (calendar_id = public.current_calendar_id())
+with check (calendar_id = public.current_calendar_id());
+
+drop policy if exists "Day flags can be removed from their calendar" on public.calendar_day_flags;
+create policy "Day flags can be removed from their calendar"
+on public.calendar_day_flags
+for delete
+to authenticated
+using (calendar_id = public.current_calendar_id());
+
 grant usage on schema public to authenticated;
 grant select on public.calendars to authenticated;
 grant select on public.habits to authenticated;
 grant select, insert, update, delete on public.habit_marks to authenticated;
+grant select, insert, update, delete on public.calendar_day_flags to authenticated;
 
 -- Run this separately if the publication does not already include habit_marks.
 -- alter publication supabase_realtime add table public.habit_marks;
+-- alter publication supabase_realtime add table public.calendar_day_flags;
 
 -- Starter data. Make sure this UUID matches CALENDAR_ID.
 do $$

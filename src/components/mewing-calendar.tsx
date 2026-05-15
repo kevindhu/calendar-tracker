@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Save,
   Sparkles,
+  Star,
   Wifi,
   WifiOff,
   X,
@@ -32,7 +33,7 @@ import {
 } from "@/lib/dates";
 import type { CalendarToken } from "@/lib/jwt";
 import { createBrowserSupabaseClient } from "@/lib/supabase";
-import type { HabitMarkRow, HabitRow } from "@/lib/supabase-types";
+import type { CalendarDayFlagRow, HabitMarkRow, HabitRow } from "@/lib/supabase-types";
 
 const NOTE_LIMIT = 280;
 const DEFAULT_ACTIVE_HABIT = "roblox";
@@ -47,14 +48,20 @@ type HabitEntrySummary = Pick<
   "id" | "habit_id" | "mark_date" | "completed" | "note" | "created_at" | "updated_at"
 >;
 type StreakMarkSummary = Pick<HabitMarkRow, "habit_id" | "mark_date">;
+type CalendarDayFlagSummary = Pick<
+  CalendarDayFlagRow,
+  "id" | "calendar_id" | "flag_date" | "important" | "created_at" | "updated_at"
+>;
 
 type MewingCalendarProps = {
   shareCode: string;
+  calendarId: string;
   habits: HabitSummary[];
   today: string;
   initialMonth: string;
   initialMarks: HabitEntrySummary[];
   initialStreakMarks: StreakMarkSummary[];
+  initialDayFlags: CalendarDayFlagSummary[];
   initialToken: CalendarToken;
   supabaseUrl: string;
   supabasePublishableKey: string;
@@ -168,6 +175,10 @@ function sortEntries(entries: HabitEntrySummary[]): HabitEntrySummary[] {
 
 function sortStreakMarks(streakMarks: StreakMarkSummary[]): StreakMarkSummary[] {
   return [...streakMarks].sort((left, right) => left.mark_date.localeCompare(right.mark_date));
+}
+
+function sortDayFlags(dayFlags: CalendarDayFlagSummary[]): CalendarDayFlagSummary[] {
+  return [...dayFlags].sort((left, right) => left.flag_date.localeCompare(right.flag_date));
 }
 
 function sortHabits(habits: HabitSummary[]): HabitSummary[] {
@@ -308,13 +319,32 @@ function buildOptimisticEntry(params: {
   };
 }
 
+function buildOptimisticDayFlag(params: {
+  existing?: CalendarDayFlagSummary;
+  calendarId: string;
+  date: string;
+}): CalendarDayFlagSummary {
+  const timestamp = new Date().toISOString();
+
+  return {
+    id: params.existing?.id ?? `optimistic-important-${Date.now()}`,
+    calendar_id: params.calendarId,
+    flag_date: params.date,
+    important: true,
+    created_at: params.existing?.created_at ?? timestamp,
+    updated_at: timestamp,
+  };
+}
+
 export function MewingCalendar({
   shareCode,
+  calendarId,
   habits,
   today,
   initialMonth,
   initialMarks,
   initialStreakMarks,
+  initialDayFlags,
   initialToken,
   supabaseUrl,
   supabasePublishableKey,
@@ -328,12 +358,14 @@ export function MewingCalendar({
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [entries, setEntries] = useState<HabitEntrySummary[]>(initialMarks);
   const [streakMarks, setStreakMarks] = useState<StreakMarkSummary[]>(initialStreakMarks);
+  const [dayFlags, setDayFlags] = useState<CalendarDayFlagSummary[]>(initialDayFlags);
   const [selectedDate, setSelectedDate] = useState(today);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isHabitDrawerOpen, setIsHabitDrawerOpen] = useState(false);
   const [draftNote, setDraftNote] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isTogglingCompletion, setIsTogglingCompletion] = useState(false);
+  const [isTogglingImportant, setIsTogglingImportant] = useState(false);
   const [isLoadingMonth, setIsLoadingMonth] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "offline">("connecting");
   const [message, setMessage] = useState<string | null>(null);
@@ -343,7 +375,7 @@ export function MewingCalendar({
   const activeHabit = sortedHabits.find((habit) => habit.id === activeHabitId) ?? defaultHabit;
   const activeVisual = getHabitVisual(activeHabit);
   const habitIds = useMemo(() => sortedHabits.map((habit) => habit.id), [sortedHabits]);
-  const busy = isSavingNote || isTogglingCompletion;
+  const busy = isSavingNote || isTogglingCompletion || isTogglingImportant;
 
   const supabase = useMemo(() => {
     const client = createBrowserSupabaseClient(supabaseUrl, supabasePublishableKey, async () => tokenRef.current);
@@ -413,6 +445,29 @@ export function MewingCalendar({
 
     setStreakMarks(sortStreakMarks(data ?? []));
   }, [ensureFreshToken, habitIds, supabase, today]);
+
+  const loadDayFlags = useCallback(
+    async (monthKey: string) => {
+      await ensureFreshToken();
+
+      const { start, end } = getCalendarGridBounds(monthKey);
+      const { data, error } = await supabase
+        .from("calendar_day_flags")
+        .select("id, calendar_id, flag_date, important, created_at, updated_at")
+        .eq("calendar_id", calendarId)
+        .gte("flag_date", start)
+        .lte("flag_date", end)
+        .eq("important", true)
+        .order("flag_date", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      setDayFlags(sortDayFlags(data ?? []));
+    },
+    [calendarId, ensureFreshToken, supabase],
+  );
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -489,10 +544,16 @@ export function MewingCalendar({
         }
       });
 
+    loadDayFlags(visibleMonth).catch(() => {
+      if (!ignore) {
+        setMessage("Run the important-days migration to enable stars.");
+      }
+    });
+
     return () => {
       ignore = true;
     };
-  }, [loadEntries, visibleMonth]);
+  }, [loadDayFlags, loadEntries, visibleMonth]);
 
   useEffect(() => {
     loadStreakMarks().catch(() => setMessage("Could not load streaks."));
@@ -513,6 +574,17 @@ export function MewingCalendar({
           loadStreakMarks().catch(() => setMessage("Could not refresh streaks."));
         },
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "calendar_day_flags",
+        },
+        () => {
+          loadDayFlags(visibleMonth).catch(() => setMessage("Could not refresh important days."));
+        },
+      )
       .subscribe((nextStatus) => {
         if (nextStatus === "SUBSCRIBED") {
           setStatus("live");
@@ -527,7 +599,7 @@ export function MewingCalendar({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadEntries, loadStreakMarks, supabase, visibleMonth]);
+  }, [loadDayFlags, loadEntries, loadStreakMarks, supabase, visibleMonth]);
 
   const activeEntries = useMemo(() => {
     return entries.filter((entry) => entry.habit_id === activeHabit.id);
@@ -536,6 +608,10 @@ export function MewingCalendar({
   const entriesByDate = useMemo(() => {
     return new Map(activeEntries.map((entry) => [entry.mark_date, entry]));
   }, [activeEntries]);
+
+  const importantFlagsByDate = useMemo(() => {
+    return new Map(dayFlags.filter((flag) => flag.important).map((flag) => [flag.flag_date, flag]));
+  }, [dayFlags]);
 
   const countsByHabitId = useMemo(() => {
     const counts = new Map<string, number>();
@@ -584,6 +660,8 @@ export function MewingCalendar({
   const selectedCompleted = selectedEntry?.completed ?? false;
   const selectedNote = selectedEntry?.note ?? "";
   const selectedHasNote = selectedNote.trim().length > 0;
+  const selectedImportantFlag = importantFlagsByDate.get(selectedDate);
+  const selectedImportant = Boolean(selectedImportantFlag);
   const selectedIsEditable = selectedDate === today;
 
   useEffect(() => {
@@ -754,6 +832,74 @@ export function MewingCalendar({
     }
   }
 
+  async function toggleImportantDay() {
+    if (isTogglingImportant) {
+      return;
+    }
+
+    const nextImportant = !selectedImportant;
+    const previousDayFlags = dayFlags;
+    const nextFlag = buildOptimisticDayFlag({
+      existing: selectedImportantFlag,
+      calendarId,
+      date: selectedDate,
+    });
+
+    setIsTogglingImportant(true);
+    setMessage(null);
+    setDayFlags((current) => {
+      const withoutSelectedDate = current.filter((flag) => flag.flag_date !== selectedDate);
+      return nextImportant ? sortDayFlags([...withoutSelectedDate, nextFlag]) : withoutSelectedDate;
+    });
+
+    try {
+      await ensureFreshToken();
+
+      if (nextImportant) {
+        const { data, error } = await supabase
+          .from("calendar_day_flags")
+          .upsert(
+            {
+              calendar_id: calendarId,
+              flag_date: selectedDate,
+              important: true,
+            },
+            { onConflict: "calendar_id,flag_date" },
+          )
+          .select("id, calendar_id, flag_date, important, created_at, updated_at")
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setDayFlags((current) =>
+            sortDayFlags([...current.filter((flag) => flag.flag_date !== selectedDate), data]),
+          );
+        }
+      } else {
+        const { error } = await supabase
+          .from("calendar_day_flags")
+          .delete()
+          .eq("calendar_id", calendarId)
+          .eq("flag_date", selectedDate);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      setMessage(nextImportant ? "Marked important." : "Important mark removed.");
+      await loadDayFlags(visibleMonth).catch(() => setMessage("Saved, but important days refresh failed."));
+    } catch {
+      setDayFlags(previousDayFlags);
+      setMessage("Could not update important day.");
+    } finally {
+      setIsTogglingImportant(false);
+    }
+  }
+
   return (
     <main
       className={[
@@ -908,13 +1054,14 @@ export function MewingCalendar({
             const hasNoteOnly = Boolean(entry && !entry.completed && hasNote);
             const isToday = day.date === today;
             const isSelected = isDetailOpen && day.date === selectedDate;
+            const isImportant = importantFlagsByDate.has(day.date);
 
             return (
               <button
                 key={day.date}
                 aria-label={`${day.date}${entry?.completed ? ", complete" : ""}${
                   entry?.note.trim() ? ", has note" : ""
-                }`}
+                }${isImportant ? ", super important" : ""}`}
                 aria-pressed={isSelected}
                 className={[
                   "day-cell",
@@ -922,6 +1069,7 @@ export function MewingCalendar({
                   day.inCurrentMonth ? "" : "day-cell-muted",
                   entry?.completed ? "day-cell-marked" : "",
                   hasNoteOnly ? "day-cell-note-only" : "",
+                  isImportant ? "day-cell-important" : "",
                   isToday ? "day-cell-today" : "",
                   isSelected ? "day-cell-selected" : "",
                 ]
@@ -939,6 +1087,11 @@ export function MewingCalendar({
                 {hasNote ? (
                   <span className="note-icon" aria-hidden="true">
                     <FileText size={14} strokeWidth={2.7} />
+                  </span>
+                ) : null}
+                {isImportant ? (
+                  <span className="important-day-icon" aria-hidden="true">
+                    <Star size={18} strokeWidth={2.8} fill="currentColor" />
                   </span>
                 ) : null}
               </button>
@@ -982,6 +1135,21 @@ export function MewingCalendar({
             <h2>{formatDateLabel(selectedDate)}</h2>
           </div>
           <div className="detail-header-actions">
+            <button
+              aria-label={selectedImportant ? "Remove important mark" : "Mark day important"}
+              aria-pressed={selectedImportant}
+              className={`important-toggle-button ${selectedImportant ? "important-toggle-button-active" : ""}`}
+              disabled={isTogglingImportant}
+              title={selectedImportant ? "Marked super important" : "Mark super important"}
+              type="button"
+              onClick={toggleImportantDay}
+            >
+              {isTogglingImportant ? (
+                <Loader2 aria-hidden="true" className="spin" size={18} />
+              ) : (
+                <Star aria-hidden="true" size={20} strokeWidth={2.7} fill={selectedImportant ? "currentColor" : "none"} />
+              )}
+            </button>
             <div className={`completion-chip ${selectedCompleted ? "completion-chip-done" : ""}`}>
               {selectedCompleted ? (
                 <CheckCircle2 aria-hidden="true" size={17} />
