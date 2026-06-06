@@ -81,13 +81,37 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
   }
 
   const habitIds = habits.map((habit) => habit.id);
-  const { data: marks, error: marksError } = await supabase
-    .from("habit_marks")
-    .select("id, habit_id, mark_date, completed, note, created_at, updated_at")
-    .in("habit_id", habitIds)
-    .gte("mark_date", start)
-    .lte("mark_date", end)
-    .order("mark_date", { ascending: true });
+  const [marksResult, streakMarksResult, dayFlagsResult, initialToken] = await Promise.all([
+    supabase
+      .from("habit_marks")
+      .select("id, habit_id, mark_date, completed, note, created_at, updated_at")
+      .in("habit_id", habitIds)
+      .gte("mark_date", start)
+      .lte("mark_date", end)
+      .order("mark_date", { ascending: true }),
+    supabase
+      .from("habit_marks")
+      .select("habit_id, mark_date")
+      .in("habit_id", habitIds)
+      .eq("completed", true)
+      .lte("mark_date", today)
+      .order("mark_date", { ascending: true }),
+    supabase
+      .from("calendar_day_flags")
+      .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
+      .eq("calendar_id", calendar.id)
+      .in("habit_id", habitIds)
+      .gte("flag_date", start)
+      .lte("flag_date", end)
+      .eq("important", true)
+      .order("flag_date", { ascending: true }),
+    issueCalendarAccessToken({
+      calendarId: calendar.id,
+      jwtSecret: config.supabaseJwtSecret,
+    }),
+  ]);
+
+  const { data: marks, error: marksError } = marksResult;
 
   if (marksError) {
     return (
@@ -98,13 +122,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     );
   }
 
-  const { data: streakMarks, error: streakMarksError } = await supabase
-    .from("habit_marks")
-    .select("habit_id, mark_date")
-    .in("habit_id", habitIds)
-    .eq("completed", true)
-    .lte("mark_date", today)
-    .order("mark_date", { ascending: true });
+  const { data: streakMarks, error: streakMarksError } = streakMarksResult;
 
   if (streakMarksError) {
     return (
@@ -115,20 +133,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     );
   }
 
-  const { data: dayFlags, error: dayFlagsError } = await supabase
-    .from("calendar_day_flags")
-    .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
-    .eq("calendar_id", calendar.id)
-    .in("habit_id", habitIds)
-    .gte("flag_date", start)
-    .lte("flag_date", end)
-    .eq("important", true)
-    .order("flag_date", { ascending: true });
-
-  const initialToken = await issueCalendarAccessToken({
-    calendarId: calendar.id,
-    jwtSecret: config.supabaseJwtSecret,
-  });
+  const { data: dayFlags, error: dayFlagsError } = dayFlagsResult;
 
   return (
     <MewingCalendar
@@ -140,6 +145,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
       initialMarks={marks ?? []}
       initialStreakMarks={streakMarks ?? []}
       initialDayFlags={dayFlagsError ? [] : (dayFlags ?? [])}
+      initialDayFlagsLoadFailed={Boolean(dayFlagsError)}
       initialToken={initialToken}
       supabaseUrl={config.supabaseUrl}
       supabasePublishableKey={config.supabasePublishableKey}

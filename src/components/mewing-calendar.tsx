@@ -62,6 +62,7 @@ type MewingCalendarProps = {
   initialMarks: HabitEntrySummary[];
   initialStreakMarks: StreakMarkSummary[];
   initialDayFlags: CalendarDayFlagSummary[];
+  initialDayFlagsLoadFailed: boolean;
   initialToken: CalendarToken;
   supabaseUrl: string;
   supabasePublishableKey: string;
@@ -351,6 +352,7 @@ export function MewingCalendar({
   initialMarks,
   initialStreakMarks,
   initialDayFlags,
+  initialDayFlagsLoadFailed,
   initialToken,
   supabaseUrl,
   supabasePublishableKey,
@@ -361,6 +363,8 @@ export function MewingCalendar({
   const tokenRef = useRef(initialToken.accessToken);
   const tokenExpiresAtRef = useRef(Date.parse(initialToken.expiresAt));
   const confettiTimeoutsRef = useRef<number[]>([]);
+  const hasUsedInitialMonthDataRef = useRef(false);
+  const hasUsedInitialStreakDataRef = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [entries, setEntries] = useState<HabitEntrySummary[]>(initialMarks);
   const [streakMarks, setStreakMarks] = useState<StreakMarkSummary[]>(initialStreakMarks);
@@ -374,7 +378,9 @@ export function MewingCalendar({
   const [isTogglingImportant, setIsTogglingImportant] = useState(false);
   const [isLoadingMonth, setIsLoadingMonth] = useState(false);
   const [status, setStatus] = useState<"connecting" | "live" | "offline">("connecting");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    initialDayFlagsLoadFailed ? "Run the important-days migration to enable stars." : null,
+  );
   const [isConfirmIncompleteOpen, setIsConfirmIncompleteOpen] = useState(false);
   const [confettiBursts, setConfettiBursts] = useState<number[]>([]);
 
@@ -538,31 +544,40 @@ export function MewingCalendar({
   useEffect(() => {
     let ignore = false;
 
+    if (!hasUsedInitialMonthDataRef.current && visibleMonth === initialMonth) {
+      hasUsedInitialMonthDataRef.current = true;
+      return;
+    }
+
     setIsLoadingMonth(true);
-    loadEntries(visibleMonth)
-      .catch(() => {
+    Promise.all([
+      loadEntries(visibleMonth).catch(() => {
         if (!ignore) {
           setMessage("Could not load this month.");
         }
-      })
-      .finally(() => {
+      }),
+      loadDayFlags(visibleMonth).catch(() => {
         if (!ignore) {
-          setIsLoadingMonth(false);
+          setMessage("Run the important-days migration to enable stars.");
         }
-      });
-
-    loadDayFlags(visibleMonth).catch(() => {
+      }),
+    ]).finally(() => {
       if (!ignore) {
-        setMessage("Run the important-days migration to enable stars.");
+        setIsLoadingMonth(false);
       }
     });
 
     return () => {
       ignore = true;
     };
-  }, [loadDayFlags, loadEntries, visibleMonth]);
+  }, [initialMonth, loadDayFlags, loadEntries, visibleMonth]);
 
   useEffect(() => {
+    if (!hasUsedInitialStreakDataRef.current) {
+      hasUsedInitialStreakDataRef.current = true;
+      return;
+    }
+
     loadStreakMarks().catch(() => setMessage("Could not load streaks."));
   }, [loadStreakMarks]);
 

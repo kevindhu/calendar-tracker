@@ -427,6 +427,100 @@ h2 {
   opacity: 0.68;
 }
 
+.loading-shell {
+  pointer-events: none;
+}
+
+.loading-shell .skeleton-box {
+  display: block;
+  border: 0;
+  background: linear-gradient(90deg, rgba(215, 222, 230, 0.62), rgba(255, 255, 255, 0.86), rgba(215, 222, 230, 0.62));
+  background-size: 220% 100%;
+  color: transparent;
+  overflow: hidden;
+  animation: skeleton-sweep 1450ms ease-in-out infinite;
+}
+
+.loading-shell .skeleton-line {
+  width: 100%;
+  height: 13px;
+  border-radius: 999px;
+}
+
+.loading-shell .skeleton-line-eyebrow {
+  width: 74px;
+  height: 10px;
+  margin-bottom: 10px;
+}
+
+.loading-shell .skeleton-line-title {
+  width: 118px;
+  height: 20px;
+  margin: 0 auto;
+}
+
+.loading-shell .habit-sidebar-header .skeleton-line-title {
+  margin: 0;
+}
+
+.loading-shell .skeleton-line-heading {
+  width: 180px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.loading-shell .skeleton-line-short {
+  width: 74px;
+}
+
+.loading-shell .skeleton-line-status {
+  width: 140px;
+}
+
+.loading-shell .skeleton-pill {
+  width: 96px;
+  height: 34px;
+  border-radius: 999px;
+}
+
+.loading-shell .skeleton-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.loading-shell .skeleton-icon-button {
+  border-radius: 14px;
+}
+
+.loading-shell .skeleton-button {
+  width: 82px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.loading-shell .loading-habit-nav-item {
+  cursor: default;
+}
+
+.loading-shell .loading-habit-nav-item .habit-streak-label {
+  min-width: 52px;
+}
+
+.loading-shell .calendar-grid-skeleton {
+  opacity: 1;
+}
+
+.loading-shell .loading-day-cell {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.loading-shell .skeleton-day-number {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+
 .day-cell {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -537,6 +631,22 @@ h2 {
 .day-cell-important.day-cell-today .day-number {
   background: var(--important);
   color: #fff;
+}
+
+@keyframes skeleton-sweep {
+  0% {
+    background-position: 120% 0;
+  }
+
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-shell .skeleton-box {
+    animation: none;
+  }
 }
 
 .note-icon {
