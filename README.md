@@ -86,12 +86,13 @@ If you want different starter routines, edit the `public.habits` inserts near th
 
 ## Realtime
 
-Realtime must be enabled for `public.habit_marks`.
+Realtime must be enabled for `public.habit_marks` and `public.calendar_day_flags`.
 
 If you prefer SQL, run:
 
 ```sql
 alter publication supabase_realtime add table public.habit_marks;
+alter publication supabase_realtime add table public.calendar_day_flags;
 ```
 
 You can verify it with:
@@ -103,17 +104,20 @@ where pubname = 'supabase_realtime'
 order by schemaname, tablename;
 ```
 
-Expected row:
+Expected rows:
 
 ```txt
+public | calendar_day_flags
 public | habit_marks
 ```
 
-Without this, the app still works, but mark/note/streak changes will not live update across open clients.
+Without this, the app still works, but mark/note/streak/favorite changes will not live update across open clients.
 
 ## Legacy Migrations
 
 If you already created the original database before notes existed, run [supabase/notes-migration.sql](./supabase/notes-migration.sql).
+
+If your setup has the older calendar-wide favorites table, run [supabase/important-days-migration.sql](./supabase/important-days-migration.sql) before deploying this frontend. Existing calendar-wide favorites are copied onto each habit because old rows did not store the source habit.
 
 If you are upgrading an older setup and want the Roblox, Manga, or Bouldering examples inserted, run [supabase/add-roblox-habit.sql](./supabase/add-roblox-habit.sql), [supabase/add-manga-habit.sql](./supabase/add-manga-habit.sql), or [supabase/add-bouldering-habit.sql](./supabase/add-bouldering-habit.sql).
 

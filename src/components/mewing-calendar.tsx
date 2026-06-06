@@ -50,7 +50,7 @@ type HabitEntrySummary = Pick<
 type StreakMarkSummary = Pick<HabitMarkRow, "habit_id" | "mark_date">;
 type CalendarDayFlagSummary = Pick<
   CalendarDayFlagRow,
-  "id" | "calendar_id" | "flag_date" | "important" | "created_at" | "updated_at"
+  "id" | "calendar_id" | "habit_id" | "flag_date" | "important" | "created_at" | "updated_at"
 >;
 
 type MewingCalendarProps = {
@@ -178,7 +178,11 @@ function sortStreakMarks(streakMarks: StreakMarkSummary[]): StreakMarkSummary[] 
 }
 
 function sortDayFlags(dayFlags: CalendarDayFlagSummary[]): CalendarDayFlagSummary[] {
-  return [...dayFlags].sort((left, right) => left.flag_date.localeCompare(right.flag_date));
+  return [...dayFlags].sort((left, right) => {
+    const dateOrder = left.flag_date.localeCompare(right.flag_date);
+
+    return dateOrder === 0 ? left.habit_id.localeCompare(right.habit_id) : dateOrder;
+  });
 }
 
 function sortHabits(habits: HabitSummary[]): HabitSummary[] {
@@ -322,6 +326,7 @@ function buildOptimisticEntry(params: {
 function buildOptimisticDayFlag(params: {
   existing?: CalendarDayFlagSummary;
   calendarId: string;
+  habitId: string;
   date: string;
 }): CalendarDayFlagSummary {
   const timestamp = new Date().toISOString();
@@ -329,6 +334,7 @@ function buildOptimisticDayFlag(params: {
   return {
     id: params.existing?.id ?? `optimistic-important-${Date.now()}`,
     calendar_id: params.calendarId,
+    habit_id: params.habitId,
     flag_date: params.date,
     important: true,
     created_at: params.existing?.created_at ?? timestamp,
@@ -453,8 +459,9 @@ export function MewingCalendar({
       const { start, end } = getCalendarGridBounds(monthKey);
       const { data, error } = await supabase
         .from("calendar_day_flags")
-        .select("id, calendar_id, flag_date, important, created_at, updated_at")
+        .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
         .eq("calendar_id", calendarId)
+        .in("habit_id", habitIds)
         .gte("flag_date", start)
         .lte("flag_date", end)
         .eq("important", true)
@@ -466,7 +473,7 @@ export function MewingCalendar({
 
       setDayFlags(sortDayFlags(data ?? []));
     },
-    [calendarId, ensureFreshToken, supabase],
+    [calendarId, ensureFreshToken, habitIds, supabase],
   );
 
   useEffect(() => {
@@ -610,8 +617,12 @@ export function MewingCalendar({
   }, [activeEntries]);
 
   const importantFlagsByDate = useMemo(() => {
-    return new Map(dayFlags.filter((flag) => flag.important).map((flag) => [flag.flag_date, flag]));
-  }, [dayFlags]);
+    return new Map(
+      dayFlags
+        .filter((flag) => flag.habit_id === activeHabit.id && flag.important)
+        .map((flag) => [flag.flag_date, flag]),
+    );
+  }, [activeHabit.id, dayFlags]);
 
   const countsByHabitId = useMemo(() => {
     const counts = new Map<string, number>();
@@ -842,13 +853,16 @@ export function MewingCalendar({
     const nextFlag = buildOptimisticDayFlag({
       existing: selectedImportantFlag,
       calendarId,
+      habitId: activeHabit.id,
       date: selectedDate,
     });
 
     setIsTogglingImportant(true);
     setMessage(null);
     setDayFlags((current) => {
-      const withoutSelectedDate = current.filter((flag) => flag.flag_date !== selectedDate);
+      const withoutSelectedDate = current.filter(
+        (flag) => !(flag.habit_id === activeHabit.id && flag.flag_date === selectedDate),
+      );
       return nextImportant ? sortDayFlags([...withoutSelectedDate, nextFlag]) : withoutSelectedDate;
     });
 
@@ -861,12 +875,13 @@ export function MewingCalendar({
           .upsert(
             {
               calendar_id: calendarId,
+              habit_id: activeHabit.id,
               flag_date: selectedDate,
               important: true,
             },
-            { onConflict: "calendar_id,flag_date" },
+            { onConflict: "habit_id,flag_date" },
           )
-          .select("id, calendar_id, flag_date, important, created_at, updated_at")
+          .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
           .single();
 
         if (error) {
@@ -875,7 +890,10 @@ export function MewingCalendar({
 
         if (data) {
           setDayFlags((current) =>
-            sortDayFlags([...current.filter((flag) => flag.flag_date !== selectedDate), data]),
+            sortDayFlags([
+              ...current.filter((flag) => !(flag.habit_id === activeHabit.id && flag.flag_date === selectedDate)),
+              data,
+            ]),
           );
         }
       } else {
@@ -883,6 +901,7 @@ export function MewingCalendar({
           .from("calendar_day_flags")
           .delete()
           .eq("calendar_id", calendarId)
+          .eq("habit_id", activeHabit.id)
           .eq("flag_date", selectedDate);
 
         if (error) {

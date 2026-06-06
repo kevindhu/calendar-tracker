@@ -126,6 +126,7 @@ Then copy the full file into the Supabase **SQL Editor** and run it. It creates:
 - `calendars`
 - `habits`
 - `habit_marks`
+- `calendar_day_flags`
 - note/completion columns on `habit_marks`
 - RLS policies
 - the starter `Roblox`, `Manga`, `Mewing`, and `Bouldering` habits
@@ -142,6 +143,12 @@ Run the migration before deploying the updated frontend. The redesigned app read
 
 Existing X marks become completed days automatically.
 
+## Existing Project: Add Habit-Specific Favorites
+
+If your app is already live and has the older calendar-wide favorites table, run `supabase/important-days-migration.sql` in the Supabase SQL Editor before deploying this frontend.
+
+Existing calendar-wide favorites are copied onto each habit because old rows did not store which habit page created them.
+
 ## Existing Project: Add Starter Habits
 
 If your app is already live and only needs the Roblox habit, run `supabase/add-roblox-habit.sql` in the Supabase SQL Editor.
@@ -156,15 +163,16 @@ In Supabase:
 
 1. Go to **Database > Publications**.
 2. Open `supabase_realtime`.
-3. Enable `habit_marks`.
+3. Enable `habit_marks` and `calendar_day_flags`.
 
 If you prefer SQL, run:
 
 ```sql
 alter publication supabase_realtime add table public.habit_marks;
+alter publication supabase_realtime add table public.calendar_day_flags;
 ```
 
-If Supabase says the table is already in the publication, that is fine.
+If Supabase says a table is already in the publication, that is fine.
 
 ## Step 9: Run Locally
 

@@ -117,8 +117,9 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
   const { data: dayFlags, error: dayFlagsError } = await supabase
     .from("calendar_day_flags")
-    .select("id, calendar_id, flag_date, important, created_at, updated_at")
+    .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
     .eq("calendar_id", calendar.id)
+    .in("habit_id", habitIds)
     .gte("flag_date", start)
     .lte("flag_date", end)
     .eq("important", true)

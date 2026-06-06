@@ -96,6 +96,7 @@ export type Database = {
         Row: {
           id: string;
           calendar_id: string;
+          habit_id: string;
           flag_date: string;
           important: boolean;
           created_at: string;
@@ -104,6 +105,7 @@ export type Database = {
         Insert: {
           id?: string;
           calendar_id: string;
+          habit_id: string;
           flag_date: string;
           important?: boolean;
           created_at?: string;
@@ -112,6 +114,7 @@ export type Database = {
         Update: {
           id?: string;
           calendar_id?: string;
+          habit_id?: string;
           flag_date?: string;
           important?: boolean;
           created_at?: string;
@@ -122,6 +125,12 @@ export type Database = {
             foreignKeyName: "calendar_day_flags_calendar_id_fkey";
             columns: ["calendar_id"];
             referencedRelation: "calendars";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "calendar_day_flags_habit_id_fkey";
+            columns: ["habit_id"];
+            referencedRelation: "habits";
             referencedColumns: ["id"];
           },
         ];
