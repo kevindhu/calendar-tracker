@@ -123,7 +123,7 @@ const confettiColors = [
   "#fff1a6",
 ];
 const confettiShapes = ["ribbon", "square", "circle", "diamond", "spark"] as const;
-const confettiPieces: ConfettiPiece[] = Array.from({ length: 96 }, (_, index) => {
+const confettiPieces: ConfettiPiece[] = Array.from({ length: 48 }, (_, index) => {
   const angle = ((index * 137.508 + (index % 6) * 17) * Math.PI) / 180;
   const xDistance = 38 + ((index * 19) % 66);
   const yDistance = 30 + ((index * 23) % 58);
