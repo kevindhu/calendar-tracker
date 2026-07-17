@@ -4,6 +4,8 @@ import type { CSSProperties } from "react";
 import {
   BellRing,
   BookOpen,
+  CalendarDays,
+  Check,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
@@ -16,7 +18,6 @@ import {
   Save,
   Sparkles,
   Star,
-  Wifi,
   WifiOff,
   X,
   XCircle,
@@ -639,6 +640,8 @@ export function MewingCalendar({
     );
   }, [activeHabit.id, dayFlags]);
 
+  const todayMonth = monthKeyFromDate(today);
+
   const countsByHabitId = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -689,13 +692,16 @@ export function MewingCalendar({
   const selectedImportantFlag = importantFlagsByDate.get(selectedDate);
   const selectedImportant = Boolean(selectedImportantFlag);
   const selectedIsEditable = selectedDate === today;
+  const todayEntry = entriesByDate.get(today);
+  const todayCompleted = todayEntry?.completed ?? false;
+  const todayNote = todayEntry?.note ?? "";
+  const isViewingTodayMonth = visibleMonth === todayMonth;
 
   useEffect(() => {
     setDraftNote(selectedNote);
   }, [activeHabit.id, selectedDate, selectedEntry?.updated_at, selectedNote]);
 
   const days = useMemo(() => getCalendarDays(visibleMonth), [visibleMonth]);
-  const todayMonth = monthKeyFromDate(today);
   const monthLabel = getMonthLabel(visibleMonth);
   const completedCount = countsByHabitId.get(activeHabit.id) ?? 0;
   const activeStreakStats = streakStatsByHabitId.get(activeHabit.id) ?? {
@@ -743,6 +749,33 @@ export function MewingCalendar({
     setMessage(null);
   }
 
+  function completeTodayFromHeader() {
+    if (busy) {
+      return;
+    }
+
+    if (!isViewingTodayMonth) {
+      setVisibleMonth(todayMonth);
+      setSelectedDate(today);
+      setIsDetailOpen(true);
+      return;
+    }
+
+    if (todayCompleted) {
+      return;
+    }
+
+    const note = selectedDate === today ? draftNote : todayNote;
+
+    setSelectedDate(today);
+    setIsDetailOpen(true);
+    void persistTodayEntry({
+      completed: true,
+      note,
+      loadingKind: "completion",
+    });
+  }
+
   function triggerCompletionConfetti() {
     const burstId = Date.now();
     setConfettiBursts((current) => [...current.slice(-2), burstId]);
@@ -750,13 +783,13 @@ export function MewingCalendar({
     const timeoutId = window.setTimeout(() => {
       setConfettiBursts((current) => current.filter((id) => id !== burstId));
       confettiTimeoutsRef.current = confettiTimeoutsRef.current.filter((id) => id !== timeoutId);
-    }, 3600);
+    }, 4200);
 
     confettiTimeoutsRef.current.push(timeoutId);
   }
 
   async function persistTodayEntry(params: { completed: boolean; note: string; loadingKind: "note" | "completion" }) {
-    if (selectedDate !== today || busy) {
+    if (busy) {
       return;
     }
 
@@ -1033,22 +1066,54 @@ export function MewingCalendar({
             <p className="eyebrow">Daily habit</p>
             <h1>{activeHabit.name}</h1>
           </div>
-          <div className="header-pill-stack">
-            <div
-              aria-label={`${getStreakLabel(activeStreak)}. ${activeStreakTooltip}`}
-              className="streak-pill"
-              data-tooltip={activeStreakTooltip}
-            >
-              <FireGif className="streak-fire-gif" variant={getFireVariant(activeStreak)} />
-              <span>{getStreakLabel(activeStreak)}</span>
+          <div className="app-header-actions">
+            <div className="header-pill-stack">
+              <div
+                aria-label={`${getStreakLabel(activeStreak)}. ${activeStreakTooltip}`}
+                className="streak-pill"
+                data-tooltip={activeStreakTooltip}
+              >
+                <FireGif className="streak-fire-gif" variant={getFireVariant(activeStreak)} />
+                <span>{getStreakLabel(activeStreak)}</span>
+              </div>
+              {status !== "live" ? (
+                <div
+                  className={`live-pill live-pill-${status}`}
+                  title={status === "connecting" ? "Connecting to live updates" : "Realtime disconnected"}
+                >
+                  {status === "connecting" ? (
+                    <Loader2 aria-hidden="true" className="spin" size={14} />
+                  ) : (
+                    <WifiOff aria-hidden="true" size={14} />
+                  )}
+                  <span>{status === "connecting" ? "Syncing" : "Offline"}</span>
+                </div>
+              ) : null}
             </div>
-            <div
-              className={`live-pill live-pill-${status}`}
-              title={status === "live" ? "Realtime connected" : "Realtime disconnected"}
+            <button
+              aria-label={
+                !isViewingTodayMonth
+                  ? "View today"
+                  : todayCompleted
+                    ? `${activeHabit.name} is complete today`
+                    : `Mark ${activeHabit.name} complete today`
+              }
+              className={`today-completion-button ${isViewingTodayMonth && todayCompleted ? "today-completion-button-done" : ""}`}
+              disabled={busy || isLoadingMonth || (isViewingTodayMonth && todayCompleted)}
+              type="button"
+              onClick={completeTodayFromHeader}
             >
-              {status === "live" ? <Wifi aria-hidden="true" size={16} /> : <WifiOff aria-hidden="true" size={16} />}
-              <span>{status === "live" ? "Live" : "Offline"}</span>
-            </div>
+              {isTogglingCompletion ? (
+                <Loader2 aria-hidden="true" className="spin" size={17} />
+              ) : !isViewingTodayMonth ? (
+                <CalendarDays aria-hidden="true" size={17} />
+              ) : todayCompleted ? (
+                <CheckCircle2 aria-hidden="true" size={17} />
+              ) : (
+                <Check aria-hidden="true" size={18} strokeWidth={3} />
+              )}
+              <span>{!isViewingTodayMonth ? "View today" : todayCompleted ? "Done today" : "Complete today"}</span>
+            </button>
           </div>
         </header>
 
@@ -1115,12 +1180,12 @@ export function MewingCalendar({
                 <span className="day-number">{day.dayNumber}</span>
                 {entry?.completed ? (
                   <span className="day-x" aria-hidden="true">
-                    <X size={44} strokeWidth={3.4} />
+                    <X size={38} strokeWidth={3} />
                   </span>
                 ) : null}
                 {hasNote ? (
                   <span className="note-icon" aria-hidden="true">
-                    <FileText size={14} strokeWidth={2.7} />
+                    <FileText size={13} strokeWidth={2.5} />
                   </span>
                 ) : null}
                 {isImportant ? (
@@ -1203,82 +1268,97 @@ export function MewingCalendar({
           </div>
         </header>
 
-        <div className="note-editor">
-          <label htmlFor="daily-note">Note</label>
-          <textarea
-            id="daily-note"
-            maxLength={NOTE_LIMIT}
-            placeholder={selectedIsEditable ? `Add a short note for ${activeHabit.name} today...` : "No note for this day."}
-            readOnly={!selectedIsEditable || busy}
-            value={draftNote}
-            onChange={(event) => setDraftNote(event.target.value)}
-          />
-          <div className="note-meta">
-            <span>{selectedIsEditable ? "Shared with anyone using this calendar link." : "Only today can be edited."}</span>
-            <span>
-              {draftNote.length}/{NOTE_LIMIT}
-            </span>
-          </div>
-        </div>
+        {selectedIsEditable ? (
+          <>
+            <div className="note-editor">
+              <label htmlFor="daily-note">Note</label>
+              <textarea
+                id="daily-note"
+                maxLength={NOTE_LIMIT}
+                placeholder={`Add a short note for ${activeHabit.name} today...`}
+                readOnly={busy}
+                value={draftNote}
+                onChange={(event) => setDraftNote(event.target.value)}
+              />
+              <div className="note-meta">
+                <span>Shared with anyone using this calendar link.</span>
+                <span>
+                  {draftNote.length}/{NOTE_LIMIT}
+                </span>
+              </div>
+            </div>
 
-        <div className="detail-actions">
-          <div className="note-action-row">
-            <button
-              className="save-note-button"
-              disabled={!selectedIsEditable || !noteDirty || isSavingNote || isTogglingCompletion}
-              type="button"
-              onClick={() =>
-                persistTodayEntry({
-                  completed: selectedCompleted,
-                  note: draftNote,
-                  loadingKind: "note",
-                })
-              }
-            >
-              {isSavingNote ? <Loader2 aria-hidden="true" className="spin" size={18} /> : <Save aria-hidden="true" size={18} />}
-              <span>Save note</span>
-            </button>
-            <button
-              className="revert-note-button"
-              disabled={!noteDirty || isSavingNote || isTogglingCompletion}
-              type="button"
-              onClick={() => {
-                setDraftNote(selectedNote);
-                setMessage("Note reverted.");
-              }}
-            >
-              <RotateCcw aria-hidden="true" size={18} />
-              <span>Revert</span>
-            </button>
-          </div>
+            <div className="detail-actions">
+              <div className="note-action-row">
+                <button
+                  className="save-note-button"
+                  disabled={!noteDirty || isSavingNote || isTogglingCompletion}
+                  type="button"
+                  onClick={() =>
+                    persistTodayEntry({
+                      completed: selectedCompleted,
+                      note: draftNote,
+                      loadingKind: "note",
+                    })
+                  }
+                >
+                  {isSavingNote ? <Loader2 aria-hidden="true" className="spin" size={18} /> : <Save aria-hidden="true" size={18} />}
+                  <span>Save note</span>
+                </button>
+                <button
+                  className="revert-note-button"
+                  disabled={!noteDirty || isSavingNote || isTogglingCompletion}
+                  type="button"
+                  onClick={() => {
+                    setDraftNote(selectedNote);
+                    setMessage("Note reverted.");
+                  }}
+                >
+                  <RotateCcw aria-hidden="true" size={18} />
+                  <span>Revert</span>
+                </button>
+              </div>
 
-          <button
-            className={`completion-button ${selectedCompleted ? "completion-button-incomplete" : ""}`}
-            disabled={!selectedIsEditable || isSavingNote || isTogglingCompletion}
-            type="button"
-            onClick={() => {
-              if (selectedCompleted) {
-                setIsConfirmIncompleteOpen(true);
-                return;
-              }
+              <button
+                className={`completion-button ${selectedCompleted ? "completion-button-incomplete" : ""}`}
+                disabled={isSavingNote || isTogglingCompletion}
+                type="button"
+                onClick={() => {
+                  if (selectedCompleted) {
+                    setIsConfirmIncompleteOpen(true);
+                    return;
+                  }
 
-              persistTodayEntry({
-                completed: true,
-                note: draftNote,
-                loadingKind: "completion",
-              });
-            }}
-          >
-            {isTogglingCompletion ? (
-              <Loader2 aria-hidden="true" className="spin" size={22} />
-            ) : selectedCompleted ? (
-              <XCircle aria-hidden="true" size={22} />
-            ) : (
-              <CheckCircle2 aria-hidden="true" size={22} />
-            )}
-            <span>{selectedCompleted ? "Mark incomplete" : "Mark complete"}</span>
-          </button>
-        </div>
+                  persistTodayEntry({
+                    completed: true,
+                    note: draftNote,
+                    loadingKind: "completion",
+                  });
+                }}
+              >
+                {isTogglingCompletion ? (
+                  <Loader2 aria-hidden="true" className="spin" size={22} />
+                ) : selectedCompleted ? (
+                  <XCircle aria-hidden="true" size={22} />
+                ) : (
+                  <CheckCircle2 aria-hidden="true" size={22} />
+                )}
+                <span>{selectedCompleted ? "Mark incomplete" : "Mark complete"}</span>
+              </button>
+            </div>
+          </>
+        ) : (
+          <section className="past-day-summary" aria-label="Past day summary">
+            <div className={`past-day-status ${selectedCompleted ? "past-day-status-complete" : ""}`}>
+              {selectedCompleted ? <CheckCircle2 aria-hidden="true" size={18} /> : <FileText aria-hidden="true" size={18} />}
+              <span>{selectedCompleted ? "Completed" : "Not completed"}</span>
+            </div>
+            <p className={selectedHasNote ? "past-day-note" : "past-day-note past-day-note-empty"}>
+              {selectedHasNote ? selectedNote : "No note was saved for this day."}
+            </p>
+            <p className="past-day-hint">Past days are kept as a record. You can still mark an important date above.</p>
+          </section>
+        )}
       </aside>
 
       {confettiBursts.map((burstId) => (
@@ -1291,6 +1371,7 @@ export function MewingCalendar({
             <Sparkles aria-hidden="true" className="confetti-pop-sparkle confetti-pop-sparkle-left" size={22} />
             <CheckCircle2 aria-hidden="true" size={48} />
             <Sparkles aria-hidden="true" className="confetti-pop-sparkle confetti-pop-sparkle-right" size={22} />
+            <span className="celebration-message">Let&apos;s go!</span>
           </div>
           {confettiPieces.map((piece, index) => (
             <span key={`${burstId}-${index}`} className={`confetti-piece ${piece.className}`} style={piece.style} />
