@@ -1179,12 +1179,14 @@ export function MewingCalendar({
               >
                 <span className="day-number">{day.dayNumber}</span>
                 {entry?.completed ? (
-                  <span className="day-check" aria-hidden="true">
-                    <Check size={38} strokeWidth={3.2} />
+                  <span className="day-x" aria-hidden="true">
+                    <X size={38} strokeWidth={3} />
                   </span>
                 ) : null}
                 {hasNote ? (
-                  <span className="note-indicator" aria-hidden="true" />
+                  <span className="note-icon" aria-hidden="true">
+                    <FileText size={13} strokeWidth={2.5} />
+                  </span>
                 ) : null}
                 {isImportant ? (
                   <span className="important-day-icon" aria-hidden="true">
