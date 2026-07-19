@@ -826,6 +826,44 @@ h2 {
   font-weight: 580;
 }
 
+.note-link-preview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  border: 1px solid #dce7f8;
+  border-radius: 10px;
+  background: #f6f9ff;
+  padding: 9px 10px;
+}
+
+.note-link-preview > span {
+  color: #4d6380;
+  font-size: 0.7rem;
+  font-weight: 740;
+}
+
+.note-link-preview > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-link-preview a,
+.past-day-note a {
+  color: #1d5fc1;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.note-link-preview a:hover,
+.past-day-note a:hover {
+  color: #12488f;
+}
+
 .detail-actions {
   display: grid;
   gap: 8px;
