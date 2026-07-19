@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import {
   BellRing,
   BookOpen,
@@ -105,6 +105,11 @@ type ConfettiPiece = {
   style: ConfettiPieceStyle;
 };
 
+type NoteLink = {
+  href: string;
+  label: string;
+};
+
 const fireGifSources: Record<FireVariant, string> = {
   default: "/cute_flame3.gif",
   blue: "/cute_flame3_blue.gif",
@@ -147,6 +152,8 @@ const confettiPieces: ConfettiPiece[] = Array.from({ length: 96 }, (_, index) =>
 });
 
 const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
+const NOTE_URL_PATTERN = /(?:https?:\/\/|www\.)[^\s<>"']+/gi;
+const TRAILING_URL_PUNCTUATION = /[),.;:!?]+$/;
 
 const habitVisuals: Record<string, HabitVisual> = {
   roblox: {
@@ -266,6 +273,74 @@ function getFireVariant(streak: number): FireVariant {
 
 function getStreakLabel(streak: number): string {
   return `${streak} day${streak === 1 ? "" : "s"}`;
+}
+
+function toNoteLink(candidate: string): NoteLink | null {
+  const label = candidate.replace(TRAILING_URL_PUNCTUATION, "");
+
+  if (!label) {
+    return null;
+  }
+
+  const href = label.startsWith("www.") ? `https://${label}` : label;
+
+  try {
+    const url = new URL(href);
+
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return null;
+    }
+
+    return { href: url.href, label };
+  } catch {
+    return null;
+  }
+}
+
+function getNoteLinks(note: string): NoteLink[] {
+  const seen = new Set<string>();
+
+  return Array.from(note.matchAll(NOTE_URL_PATTERN)).flatMap((match) => {
+    const link = toNoteLink(match[0]);
+
+    if (!link || seen.has(link.href)) {
+      return [];
+    }
+
+    seen.add(link.href);
+    return [link];
+  });
+}
+
+function renderLinkedNote(note: string): ReactNode[] {
+  const linkedNote: ReactNode[] = [];
+  let cursor = 0;
+
+  for (const match of note.matchAll(NOTE_URL_PATTERN)) {
+    const link = toNoteLink(match[0]);
+    const startIndex = match.index ?? 0;
+
+    if (!link) {
+      continue;
+    }
+
+    if (startIndex > cursor) {
+      linkedNote.push(note.slice(cursor, startIndex));
+    }
+
+    linkedNote.push(
+      <a href={link.href} key={`${startIndex}-${link.href}`} rel="noreferrer noopener" target="_blank">
+        {link.label}
+      </a>,
+    );
+    cursor = startIndex + link.label.length;
+  }
+
+  if (cursor < note.length) {
+    linkedNote.push(note.slice(cursor));
+  }
+
+  return linkedNote;
 }
 
 function shouldIgnoreMonthHotkeys(target: EventTarget | null): boolean {
@@ -714,6 +789,7 @@ export function MewingCalendar({
     ? `Started on ${formatDateLabel(activeStreakStats.startDate)}`
     : "No current streak yet";
   const noteDirty = draftNote !== selectedNote;
+  const draftLinks = useMemo(() => getNoteLinks(draftNote), [draftNote]);
   const habitStyle: HabitStyle = {
     "--accent": activeVisual.accent,
     "--accent-soft": activeVisual.soft,
@@ -1286,6 +1362,18 @@ export function MewingCalendar({
                   {draftNote.length}/{NOTE_LIMIT}
                 </span>
               </div>
+              {draftLinks.length > 0 ? (
+                <div className="note-link-preview" aria-label="Links in this note">
+                  <span>Links</span>
+                  <div>
+                    {draftLinks.map((link) => (
+                      <a href={link.href} key={link.href} rel="noreferrer noopener" target="_blank">
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="detail-actions">
@@ -1354,7 +1442,7 @@ export function MewingCalendar({
               <span>{selectedCompleted ? "Completed" : "Not completed"}</span>
             </div>
             <p className={selectedHasNote ? "past-day-note" : "past-day-note past-day-note-empty"}>
-              {selectedHasNote ? selectedNote : "No note was saved for this day."}
+              {selectedHasNote ? renderLinkedNote(selectedNote) : "No note was saved for this day."}
             </p>
             <p className="past-day-hint">Past days are kept as a record. You can still mark an important date above.</p>
           </section>
