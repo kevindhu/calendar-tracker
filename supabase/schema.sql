@@ -39,6 +39,12 @@ create table if not exists public.calendar_day_flags (
   unique (habit_id, flag_date)
 );
 
+-- The calendar asks for completed marks ordered by date on every initial load
+-- and realtime refresh. Keep that path fast even after years of history.
+create index if not exists habit_marks_completed_streak_idx
+  on public.habit_marks (habit_id, mark_date desc)
+  where completed = true;
+
 alter table public.habit_marks
   add column if not exists completed boolean not null default true,
   add column if not exists note text not null default '',

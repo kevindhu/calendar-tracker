@@ -50,11 +50,20 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
   const initialMonth = monthKeyFromDate(today);
   const { start, end } = getCalendarGridBounds(initialMonth);
 
-  const { data: calendar, error: calendarError } = await supabase
-    .from("calendars")
-    .select("id, name, created_at")
-    .eq("id", config.calendarId)
-    .single();
+  const [calendarResult, habitsResult] = await Promise.all([
+    supabase
+      .from("calendars")
+      .select("id, name, created_at")
+      .eq("id", config.calendarId)
+      .single(),
+    supabase
+      .from("habits")
+      .select("id, name, slug, color, calendar_id, created_at")
+      .eq("calendar_id", config.calendarId)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const { data: calendar, error: calendarError } = calendarResult;
 
   if (calendarError || !calendar) {
     return (
@@ -65,11 +74,7 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
     );
   }
 
-  const { data: habits, error: habitsError } = await supabase
-    .from("habits")
-    .select("id, name, slug, color, calendar_id, created_at")
-    .eq("calendar_id", calendar.id)
-    .order("created_at", { ascending: true });
+  const { data: habits, error: habitsError } = habitsResult;
 
   if (habitsError || !habits || habits.length === 0) {
     return (

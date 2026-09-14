@@ -438,9 +438,13 @@ export function MewingCalendar({
   const [activeHabitId, setActiveHabitId] = useState(defaultHabit.id);
   const tokenRef = useRef(initialToken.accessToken);
   const tokenExpiresAtRef = useRef(Date.parse(initialToken.expiresAt));
+  const refreshTokenPromiseRef = useRef<Promise<void> | null>(null);
   const confettiTimeoutsRef = useRef<number[]>([]);
   const hasUsedInitialMonthDataRef = useRef(false);
   const hasUsedInitialStreakDataRef = useRef(false);
+  const entriesRequestIdRef = useRef(0);
+  const streakRequestIdRef = useRef(0);
+  const dayFlagsRequestIdRef = useRef(0);
   const [visibleMonth, setVisibleMonth] = useState(initialMonth);
   const [entries, setEntries] = useState<HabitEntrySummary[]>(initialMarks);
   const [streakMarks, setStreakMarks] = useState<StreakMarkSummary[]>(initialStreakMarks);
@@ -472,18 +476,35 @@ export function MewingCalendar({
   }, [supabasePublishableKey, supabaseUrl]);
 
   const refreshToken = useCallback(async () => {
-    const response = await fetch(`/api/session?code=${encodeURIComponent(shareCode)}`, {
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      throw new Error("Unable to refresh calendar access.");
+    if (refreshTokenPromiseRef.current) {
+      return refreshTokenPromiseRef.current;
     }
 
-    const nextToken = (await response.json()) as CalendarToken;
-    tokenRef.current = nextToken.accessToken;
-    tokenExpiresAtRef.current = Date.parse(nextToken.expiresAt);
-    supabase.realtime.setAuth(nextToken.accessToken);
+    const refreshPromise = (async () => {
+      const response = await fetch(`/api/session?code=${encodeURIComponent(shareCode)}`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(4_000),
+      });
+
+      if (!response.ok) {
+        throw new Error("Unable to refresh calendar access.");
+      }
+
+      const nextToken = (await response.json()) as CalendarToken;
+      tokenRef.current = nextToken.accessToken;
+      tokenExpiresAtRef.current = Date.parse(nextToken.expiresAt);
+      supabase.realtime.setAuth(nextToken.accessToken);
+    })();
+
+    refreshTokenPromiseRef.current = refreshPromise;
+
+    try {
+      await refreshPromise;
+    } finally {
+      if (refreshTokenPromiseRef.current === refreshPromise) {
+        refreshTokenPromiseRef.current = null;
+      }
+    }
   }, [shareCode, supabase]);
 
   const ensureFreshToken = useCallback(async () => {
@@ -496,6 +517,7 @@ export function MewingCalendar({
 
   const loadEntries = useCallback(
     async (monthKey: string) => {
+      const requestId = ++entriesRequestIdRef.current;
       await ensureFreshToken();
 
       const { start, end } = getCalendarGridBounds(monthKey);
@@ -511,12 +533,17 @@ export function MewingCalendar({
         throw error;
       }
 
+      if (requestId !== entriesRequestIdRef.current) {
+        return;
+      }
+
       setEntries(data ?? []);
     },
     [ensureFreshToken, habitIds, supabase],
   );
 
   const loadStreakMarks = useCallback(async () => {
+    const requestId = ++streakRequestIdRef.current;
     await ensureFreshToken();
 
     const { data, error } = await supabase
@@ -531,11 +558,16 @@ export function MewingCalendar({
       throw error;
     }
 
+    if (requestId !== streakRequestIdRef.current) {
+      return;
+    }
+
     setStreakMarks(sortStreakMarks(data ?? []));
   }, [ensureFreshToken, habitIds, supabase, today]);
 
   const loadDayFlags = useCallback(
     async (monthKey: string) => {
+      const requestId = ++dayFlagsRequestIdRef.current;
       await ensureFreshToken();
 
       const { start, end } = getCalendarGridBounds(monthKey);
@@ -553,10 +585,19 @@ export function MewingCalendar({
         throw error;
       }
 
+      if (requestId !== dayFlagsRequestIdRef.current) {
+        return;
+      }
+
       setDayFlags(sortDayFlags(data ?? []));
     },
     [calendarId, ensureFreshToken, habitIds, supabase],
   );
+
+  const visibleMonthRef = useRef(visibleMonth);
+  const realtimeLoadersRef = useRef({ loadEntries, loadStreakMarks, loadDayFlags });
+  visibleMonthRef.current = visibleMonth;
+  realtimeLoadersRef.current = { loadEntries, loadStreakMarks, loadDayFlags };
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -658,6 +699,43 @@ export function MewingCalendar({
   }, [loadStreakMarks]);
 
   useEffect(() => {
+    let marksRefreshTimeoutId: number | undefined;
+    let flagsRefreshTimeoutId: number | undefined;
+
+    const scheduleMarksRefresh = () => {
+      if (marksRefreshTimeoutId !== undefined) {
+        window.clearTimeout(marksRefreshTimeoutId);
+      }
+
+      marksRefreshTimeoutId = window.setTimeout(() => {
+        const loaders = realtimeLoadersRef.current;
+        const month = visibleMonthRef.current;
+        loadEntriesAndStreaks(loaders, month);
+      }, 125);
+    };
+
+    const scheduleFlagsRefresh = () => {
+      if (flagsRefreshTimeoutId !== undefined) {
+        window.clearTimeout(flagsRefreshTimeoutId);
+      }
+
+      flagsRefreshTimeoutId = window.setTimeout(() => {
+        realtimeLoadersRef.current
+          .loadDayFlags(visibleMonthRef.current)
+          .catch(() => setMessage("Could not refresh important days."));
+      }, 125);
+    };
+
+    function loadEntriesAndStreaks(
+      loaders: typeof realtimeLoadersRef.current,
+      month: string,
+    ) {
+      void Promise.all([
+        loaders.loadEntries(month).catch(() => setMessage("Could not refresh entries.")),
+        loaders.loadStreakMarks().catch(() => setMessage("Could not refresh streaks.")),
+      ]);
+    }
+
     const channel = supabase
       .channel("habit_marks:calendar")
       .on(
@@ -666,11 +744,9 @@ export function MewingCalendar({
           event: "*",
           schema: "public",
           table: "habit_marks",
+          filter: `habit_id=in.(${habitIds.join(",")})`,
         },
-        () => {
-          loadEntries(visibleMonth).catch(() => setMessage("Could not refresh entries."));
-          loadStreakMarks().catch(() => setMessage("Could not refresh streaks."));
-        },
+        scheduleMarksRefresh,
       )
       .on(
         "postgres_changes",
@@ -678,10 +754,9 @@ export function MewingCalendar({
           event: "*",
           schema: "public",
           table: "calendar_day_flags",
+          filter: `calendar_id=eq.${calendarId}`,
         },
-        () => {
-          loadDayFlags(visibleMonth).catch(() => setMessage("Could not refresh important days."));
-        },
+        scheduleFlagsRefresh,
       )
       .subscribe((nextStatus) => {
         if (nextStatus === "SUBSCRIBED") {
@@ -695,9 +770,17 @@ export function MewingCalendar({
       });
 
     return () => {
+      if (marksRefreshTimeoutId !== undefined) {
+        window.clearTimeout(marksRefreshTimeoutId);
+      }
+
+      if (flagsRefreshTimeoutId !== undefined) {
+        window.clearTimeout(flagsRefreshTimeoutId);
+      }
+
       supabase.removeChannel(channel);
     };
-  }, [loadDayFlags, loadEntries, loadStreakMarks, supabase, visibleMonth]);
+  }, [calendarId, habitIds, supabase]);
 
   const activeEntries = useMemo(() => {
     return entries.filter((entry) => entry.habit_id === activeHabit.id);
@@ -953,10 +1036,6 @@ export function MewingCalendar({
       if (params.loadingKind === "completion" && params.completed) {
         triggerCompletionConfetti();
       }
-      await Promise.all([
-        loadEntries(visibleMonth).catch(() => setMessage("Saved, but calendar refresh failed.")),
-        loadStreakMarks().catch(() => setMessage("Saved, but streak refresh failed.")),
-      ]);
     } catch {
       setEntries(previousEntries);
       setStreakMarks(previousStreakMarks);
@@ -1034,7 +1113,6 @@ export function MewingCalendar({
       }
 
       setMessage(nextImportant ? "Marked important." : "Important mark removed.");
-      await loadDayFlags(visibleMonth).catch(() => setMessage("Saved, but important days refresh failed."));
     } catch {
       setDayFlags(previousDayFlags);
       setMessage("Could not update important day.");
