@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { CalendarLoadError } from "@/components/calendar-load-error";
 import { MewingCalendar } from "@/components/mewing-calendar";
 import { SetupPanel } from "@/components/setup-panel";
 import { getMissingConfig, getMissingEnvVars, getRuntimeConfig } from "@/lib/app-config";
@@ -14,6 +15,19 @@ type CalendarPageProps = {
     shareCode: string;
   }>;
 };
+
+function databaseLoadError(
+  resource: string,
+  result: { status: number; error: { code?: string } | null },
+) {
+  // Keep diagnostics on the server; upstream errors can contain raw HTML.
+  console.error("Calendar database request failed", {
+    resource,
+    status: result.status,
+    code: result.error?.code,
+  });
+  return <CalendarLoadError />;
+}
 
 export default async function CalendarPage({ params }: CalendarPageProps) {
   const { shareCode } = await params;
@@ -50,22 +64,30 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
   const initialMonth = monthKeyFromDate(today);
   const { start, end } = getCalendarGridBounds(initialMonth);
 
+  // Our fetch wrapper already retries reads. Disable SDK retries so an outage
+  // doesn't multiply those attempts and leave the loading screen up for a minute.
   const [calendarResult, habitsResult] = await Promise.all([
     supabase
       .from("calendars")
       .select("id, name, created_at")
       .eq("id", config.calendarId)
-      .single(),
+      .maybeSingle()
+      .retry(false),
     supabase
       .from("habits")
       .select("id, name, slug, color, calendar_id, created_at")
       .eq("calendar_id", config.calendarId)
-      .order("created_at", { ascending: true }),
+      .order("created_at", { ascending: true })
+      .retry(false),
   ]);
 
   const { data: calendar, error: calendarError } = calendarResult;
 
-  if (calendarError || !calendar) {
+  if (calendarError) {
+    return databaseLoadError("calendar", calendarResult);
+  }
+
+  if (!calendar) {
     return (
       <SetupPanel
         title="Calendar row not found"
@@ -76,7 +98,11 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
 
   const { data: habits, error: habitsError } = habitsResult;
 
-  if (habitsError || !habits || habits.length === 0) {
+  if (habitsError) {
+    return databaseLoadError("habits", habitsResult);
+  }
+
+  if (!habits || habits.length === 0) {
     return (
       <SetupPanel
         title="Habits not found"
@@ -93,14 +119,16 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
       .in("habit_id", habitIds)
       .gte("mark_date", start)
       .lte("mark_date", end)
-      .order("mark_date", { ascending: true }),
+      .order("mark_date", { ascending: true })
+      .retry(false),
     supabase
       .from("habit_marks")
       .select("habit_id, mark_date")
       .in("habit_id", habitIds)
       .eq("completed", true)
       .lte("mark_date", today)
-      .order("mark_date", { ascending: true }),
+      .order("mark_date", { ascending: true })
+      .retry(false),
     supabase
       .from("calendar_day_flags")
       .select("id, calendar_id, habit_id, flag_date, important, created_at, updated_at")
@@ -109,7 +137,8 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
       .gte("flag_date", start)
       .lte("flag_date", end)
       .eq("important", true)
-      .order("flag_date", { ascending: true }),
+      .order("flag_date", { ascending: true })
+      .retry(false),
     issueCalendarAccessToken({
       calendarId: calendar.id,
       jwtSecret: config.supabaseJwtSecret,
@@ -119,23 +148,13 @@ export default async function CalendarPage({ params }: CalendarPageProps) {
   const { data: marks, error: marksError } = marksResult;
 
   if (marksError) {
-    return (
-      <SetupPanel
-        title="Could not load calendar marks"
-        detail="Check that the Supabase service role key and database schema are configured correctly."
-      />
-    );
+    return databaseLoadError("marks", marksResult);
   }
 
   const { data: streakMarks, error: streakMarksError } = streakMarksResult;
 
   if (streakMarksError) {
-    return (
-      <SetupPanel
-        title="Could not load streaks"
-        detail="Check that the Supabase service role key and database schema are configured correctly."
-      />
-    );
+    return databaseLoadError("streaks", streakMarksResult);
   }
 
   const { data: dayFlags, error: dayFlagsError } = dayFlagsResult;

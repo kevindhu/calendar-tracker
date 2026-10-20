@@ -1346,6 +1346,34 @@ h2 {
   line-height: 1.5;
 }
 
+.calendar-load-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.calendar-load-error-actions button {
+  border: 0;
+  border-radius: 10px;
+  background: var(--ink);
+  color: white;
+  cursor: pointer;
+  font-weight: 650;
+  padding: 11px 18px;
+}
+
+.calendar-load-error-actions button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.calendar-load-error-actions a {
+  color: var(--muted);
+  text-underline-offset: 3px;
+}
+
 .missing-list {
   display: flex;
   flex-wrap: wrap;
